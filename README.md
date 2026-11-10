@@ -4,6 +4,31 @@ An independent provider repository using the evilo plugin template's structure.
 Remote: `https://github.com/crowforkotlin/evilo-plugin-copymanga`.
 CopyManga source is not part of evilo or the provider-neutral template.
 
+## Install in evilo
+
+Subscribe to this direct JSON catalog URL, not the GitHub repository homepage:
+
+```text
+https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/main/plugins.json
+```
+
+1. In More, enable the NSFW display preference; this provider is conservatively
+   classified as NSFW and is otherwise hidden.
+2. Select Manga, open Browse, and use the App Bar's `+` action to open Plugin
+   Sources. Enter the JSON URL and tap Subscribe.
+3. Open CopyManga, select version `1.0.0`, review its source and network
+   permissions, and approve installation. Use Open after installation.
+
+No individual manifest URL, key ID, or Ed25519 key is entered by the user.
+The package uses the app's preserved authority; an APK built with a different
+authority cannot install it. This is a custom subscription, not an officially
+certified entry in evilo's bundled catalog.
+
+The versioned catalog and all download files are pinned to tag `v1.0.0` under
+`releases/1.0.0/`. The root catalog is the stable subscription address for future
+updates. The source snapshot is commit
+`b600122756e24b3bc7169f9c530c67b53c45771b`, which contains the actual implementation.
+
 ## Modules
 
 ```text
@@ -48,16 +73,28 @@ served HTTPS source/release URLs:
   -Pwasmline.autoDownload=true
 ```
 
-This is a manual instruction, not a recorded packaging result. Export writes a
-version-specific directory under `evilo-plugin-copymanga/build/release/` with the
-signed manifest/artifacts, exact source ZIP/hash, PNG, and `plugins.json`.
-Upload every exported artifact. The source ZIP includes actual code/build logic,
-not only binaries. The operator reviews source versus the linked commit;
-source hashes are not reproducible-build attestations.
+Export writes a version-specific directory under
+`evilo-plugin-copymanga/build/release/` with the signed manifest/artifacts, exact
+source ZIP/hash, PNG, and `plugins.json`. Publish the manifest, every referenced
+artifact, source ZIP, icon, and catalog. Debug build records are not download
+requirements and are excluded from publication because they contain local paths.
+The source ZIP includes actual code/build logic, not only binaries. The operator
+reviews source versus the linked commit; source hashes are not reproducible-build
+attestations.
 
-Replace placeholder icons before publication. Do not publish ignored old preview
-artifacts or use preview signing keys. See the template README for external key
-paths, SDK/toolchain requirements, and publication rules.
+Version `1.0.0` was exported with the preserved application authority. Its
+Ed25519 manifest signature, all three signed artifact hashes, and source ZIP were
+checked before publication. All 30 archived source files match the linked source
+commit. The provider PNG is exported from this repository's editable SVG, not the
+template's Android placeholder. Do not publish ignored old preview artifacts or
+use preview signing keys. See the template README for external key paths,
+SDK/toolchain requirements, and publication rules.
+
+The packaging task reported `WLAOT002`: the upstream online AOT catalog query was
+unavailable because remote catalog validation failed. The local catalog and
+selected AOT generation passed the task's checks; the package includes Pulley
+32/64 artifacts for Wasmtime `50.0.1` and raw Wasm. This does not establish
+successful loading on a phone or current live-provider availability.
 
 ## Loading and limitations
 
@@ -66,10 +103,11 @@ marked NSFW and hidden until that preference is enabled in More. The host checks
 signed identity, provenance, compatibility, and signature, then reviews network
 permissions with the user. Custom catalogs cannot add keys or self-certify.
 
-Live provider availability, guest packaging, and signed loading are not proven
-by source edits. Browser CORS/mixed-content restrictions and the CDN allowlist
-apply. Login, library/history, saved progress, and downloads are not implemented.
-A signature or official review is not a safety guarantee.
+The guest package was built and its signature checked. Loading in an installed
+app and live provider availability have not been tested. Browser CORS/mixed-content
+restrictions and the CDN allowlist apply. Login, library/history, saved progress,
+and downloads are not implemented. A signature or official review is not a safety
+guarantee.
 
 Sharing the template structure does not change this independently created
 repository's GitHub fork relationship or publish signed plugin releases.

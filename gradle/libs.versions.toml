@@ -1,0 +1,22 @@
+[versions]
+kotlincrypto = "0.8.0"
+kotlin = "2.4.0"
+wasmline = "1.0.0-beta1"
+evilo-plugin-sdk = "1.0.0"
+kotlinx-serialization = "1.11.0"
+jvm = "21"
+
+[libraries]
+kotlincrypto-hmac-sha2 = { module = "org.kotlincrypto.macs:hmac-sha2", version.ref = "kotlincrypto" }
+evilo-library = { module = "io.github.crowforkotlin.evilo:evilo-library", version.ref = "evilo-plugin-sdk" }
+wasmline-loader = { module = "io.github.crowforkotlin:wasmline-loader", version.ref = "wasmline" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+gradle-kotlin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+gradle-kotlinSerialization = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "kotlin" }
+gradle-wasmline = { module = "io.github.crowforkotlin.wasmline:io.github.crowforkotlin.wasmline.gradle.plugin", version.ref = "wasmline" }
+
+[plugins]
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+wasmline = { id = "io.github.crowforkotlin.wasmline", version.ref = "wasmline" }

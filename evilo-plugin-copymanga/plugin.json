@@ -1,0 +1,40 @@
+{
+  "descriptor": {
+    "id": "crow.evilo.source.copymanga",
+    "name": "CopyManga",
+    "version": "1.0.0",
+    "versionCode": 1,
+    "kinds": ["manga"],
+    "languages": ["zh"],
+    "protocol": {
+      "major": 1,
+      "minimumMinor": 0,
+      "requiredCapabilities": ["media.catalog.v1", "http.request.v1"],
+      "optionalCapabilities": []
+    },
+    "permissions": {
+      "api": {
+        "origins": ["https://api.copy202602.com", "https://api.mangacopy.com"],
+        "pathPrefixes": ["/api/v3/"],
+        "methods": ["GET"],
+        "headers": ["user-agent", "accept", "platform", "version", "region", "webp", "referer", "x-auth-timestamp", "tapstring", "x-auth-signature"]
+      },
+      "media": {
+        "origins": ["https://hi77-overseas.mangafuna.xyz"],
+        "pathPrefixes": ["/"],
+        "methods": ["GET"],
+        "headers": ["user-agent", "accept"]
+      },
+      "storage": false
+    }
+  },
+  "catalog": {
+    "authors": [{"name": "evilo contributors"}],
+    "overseas": true,
+    "nsfw": true,
+    "description": "CopyManga reference integration with search, details, chapter groups, pagination, and ordered image pages. Network availability and content restrictions depend on the upstream provider.",
+    "createdAt": "2026-11-09T00:00:00Z",
+    "forceUpdate": false,
+    "minimumUsableVersionCode": 1
+  }
+}

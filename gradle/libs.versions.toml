@@ -11,6 +11,7 @@ kotlincrypto-hmac-sha2 = { module = "org.kotlincrypto.macs:hmac-sha2", version.r
 evilo-library = { module = "io.github.crowforkotlin.evilo:evilo-library", version.ref = "evilo-plugin-sdk" }
 wasmline-loader = { module = "io.github.crowforkotlin:wasmline-loader", version.ref = "wasmline" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 gradle-kotlin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 gradle-kotlinSerialization = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "kotlin" }

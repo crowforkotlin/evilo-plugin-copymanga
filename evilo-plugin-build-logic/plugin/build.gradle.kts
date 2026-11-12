@@ -8,4 +8,5 @@ dependencies {
     implementation(libs.gradle.kotlinSerialization)
     implementation(libs.gradle.wasmline)
     implementation(libs.wasmline.loader)
+    testImplementation(libs.kotlin.test.junit)
 }

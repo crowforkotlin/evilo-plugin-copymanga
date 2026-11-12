@@ -16,18 +16,26 @@ https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/main/plug
    classified as NSFW and is otherwise hidden.
 2. Select Manga, open Browse, and use the App Bar's `+` action to open Plugin
    Sources. Enter the JSON URL and tap Subscribe.
-3. Open CopyManga, select version `1.0.0`, review its source and network
-   permissions, and approve installation. Use Open after installation.
+3. Tap the uninstalled CopyManga row, review version `1.0.0`, its source and
+   network permissions, and approve installation. Tap the installed row to open it.
 
 No individual manifest URL, key ID, or Ed25519 key is entered by the user.
 The package uses the app's preserved authority; an APK built with a different
-authority cannot install it. This is a custom subscription, not an officially
-certified entry in evilo's bundled catalog.
+authority cannot install it. This independently hosted subscription does not
+require a PR to evilo's bundled source and cannot add trusted signing keys.
 
 The versioned catalog and all download files are pinned to tag `v1.0.0` under
 `releases/1.0.0/`. The root catalog is the stable subscription address for future
 updates. The source snapshot is commit
 `b600122756e24b3bc7169f9c530c67b53c45771b`, which contains the actual implementation.
+
+The root `plugins.json` now uses the compact catalog format and requires an app
+with evilo's new `CatalogParser` normalization. Kinds, languages, protocol, and
+permissions are declared once per plugin. Release `1.0.0` keeps its original
+version/code, publication time, source snapshot/commit/hash, and download URLs.
+The tag-pinned `releases/1.0.0/plugins.json` remains in the previous full format
+for older clients. Existing signed packages, artifacts, and source ZIPs are not
+rewritten by this catalog-format update.
 
 ## Modules
 
@@ -49,6 +57,27 @@ The generic guest wraps the SDK's `MangaPluginAdapter`; its internal parser uses
 manga API 2. See `evilo-plugin-copymanga/README.md` for API paths, headers,
 pagination, image ordering, and limitations.
 
+## Maintain the plugin source
+
+`evilo-plugin-copymanga/plugin.json` is the editable build specification, not the
+subscription URL. Its `descriptor` supplies signed identity and permissions;
+`catalog` supplies authors and introduction, plus optional region/NSFW, creation
+date, and update policy. Authors may be strings or name/URL objects. Creation
+and publication dates accept `YYYY-MM-DD` or full timestamps.
+
+Release export writes a compact `plugins.json` with `name` and `plugins` at the
+root, common descriptor fields once per plugin, and immutable release metadata
+inside `availableVersions`. No review metadata or separate JSON Schema is emitted.
+The root catalog's source snapshot override is retained for the existing release.
+For a new export, `plugin.sourceSnapshotUrl` is optional; without it a release
+inherits the source repository URL while its actual commit/archive/hash remain
+required.
+
+For a new release, append its entry to the stable root catalog. Preserve older
+release metadata and use explicit overrides if permissions, protocol, languages,
+or kinds change. Do not overwrite tag-pinned files or re-export `1.0.0` merely to
+change the catalog layout. Catalog changes do not publish a new plugin binary.
+
 ## Signing and publication
 
 Only the operator of the app's preserved Ed25519 authority signs packages.
@@ -68,7 +97,6 @@ served HTTPS source/release URLs:
   -Pplugin.sourceRevision="$SOURCE_COMMIT" \
   -Pplugin.releaseBaseUrl="$RELEASE_BASE_URL" \
   -Pplugin.sourceUrl="https://github.com/crowforkotlin/evilo-plugin-copymanga" \
-  -Pplugin.sourceSnapshotUrl="$SOURCE_SNAPSHOT_URL" \
   -Pplugin.publishedAt="$PUBLISHED_AT" \
   -Pwasmline.autoDownload=true
 ```
@@ -82,7 +110,14 @@ The source ZIP includes actual code/build logic, not only binaries. The operator
 reviews source versus the linked commit; source hashes are not reproducible-build
 attestations.
 
-Version `1.0.0` was exported with the preserved application authority. Its
+`PUBLISHED_AT` is explicit and may be an ordinary date or full timestamp. Add
+`-Pplugin.sourceSnapshotUrl="$SOURCE_SNAPSHOT_URL"` when the new release needs
+its own immutable source link. An omitted creation date is derived by the app;
+an explicit one must not be after publication.
+
+The following records describe the existing published `1.0.0`, not an export or
+validation run performed for the catalog-format update. Version `1.0.0` was
+exported with the preserved application authority. Its
 Ed25519 manifest signature, all three signed artifact hashes, and source ZIP were
 checked before publication. All 30 archived source files match the linked source
 commit. The provider PNG is exported from this repository's editable SVG, not the
@@ -101,13 +136,12 @@ successful loading on a phone or current live-provider availability.
 Add the published JSON URL in evilo's Browse page. This provider is conservatively
 marked NSFW and hidden until that preference is enabled in More. The host checks
 signed identity, provenance, compatibility, and signature, then reviews network
-permissions with the user. Custom catalogs cannot add keys or self-certify.
+permissions with the user. Custom catalogs cannot add trusted keys.
 
 The guest package was built and its signature checked. Loading in an installed
 app and live provider availability have not been tested. Browser CORS/mixed-content
 restrictions and the CDN allowlist apply. Login, library/history, saved progress,
-and downloads are not implemented. A signature or official review is not a safety
-guarantee.
+and downloads are not implemented. A signature is not a safety guarantee.
 
 Sharing the template structure does not change this independently created
 repository's GitHub fork relationship or publish signed plugin releases.
@@ -122,3 +156,12 @@ These tests use local fixtures and an injected clock, not a live provider:
 ```
 
 Tests and plugin builds need a separate explicit execution request.
+
+For the compact catalog exporter, from this repository:
+
+```sh
+./gradlew -p evilo-plugin-build-logic :plugin:test
+```
+
+These build-logic tests use local metadata fixtures, not signing keys or live
+provider requests. They have not been run for this adaptation.

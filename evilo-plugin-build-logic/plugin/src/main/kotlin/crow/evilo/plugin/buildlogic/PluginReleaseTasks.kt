@@ -73,7 +73,7 @@ abstract class CheckPluginAuthority : DefaultTask() {
     fun check() {
         val file = File(keyPath.get()).toPath()
         require(Files.isRegularFile(file) && !Files.isSymbolicLink(file)) {
-            "Missing authority key. Generate it with evilo's :evilo-app:generatePluginSigningKeys, not a template-local key generator."
+            "Missing publisher key. Supply an existing external identity; see .github/README.md. Release builds never generate keys."
         }
         require(!file.toRealPath().startsWith(repositoryDirectory.get().asFile.toPath().toRealPath())) { "Signing keys must stay outside the plugin repository." }
         val value = Files.readString(file).trim()
@@ -100,6 +100,8 @@ abstract class CheckPluginAuthority : DefaultTask() {
 abstract class ExportPluginRelease : DefaultTask() {
     @get:InputFile abstract val inputSpec: RegularFileProperty
     @get:InputFile abstract val iconFile: RegularFileProperty
+    @get:InputFile abstract val publicKeyFile: RegularFileProperty
+    @get:InputFile abstract val authorityMetadataFile: RegularFileProperty
     @get:InputDirectory abstract val packageDirectory: DirectoryProperty
     @get:InputFile abstract val sources: RegularFileProperty
     @get:Input abstract val packageBaseUrl: Property<String>
@@ -136,6 +138,15 @@ abstract class ExportPluginRelease : DefaultTask() {
         archive.copyTo(File(output, archive.name), overwrite = true)
         val icon = iconFile.get().asFile
         icon.copyTo(File(output, "icon.png"), overwrite = true)
+        val publicHex = publicKeyFile.get().asFile.readText().trim().lowercase()
+        val authority = Properties().apply { authorityMetadataFile.get().asFile.inputStream().use(::load) }
+        require(Regex("[0-9a-f]{64}").matches(publicHex) && authority.getProperty("publicKeyHex") == publicHex) { "Invalid publisher public identity." }
+        @Suppress("UNCHECKED_CAST")
+        val plugin = (catalog["plugins"] as List<*>).single() as MutableMap<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val release = (plugin["availableVersions"] as List<*>).single() as MutableMap<String, Any?>
+        release["signing"] = mapOf("algorithm" to "Ed25519", "keyId" to requireNotNull(authority.getProperty("keyId")), "publicKeyHex" to publicHex)
+        release["manifestSha256"] = sha256(File(output, "manifest.wlm"))
         File(output, "plugins.json").writeText(JsonOutput.prettyPrint(JsonOutput.toJson(catalog)) + "\n")
     }
 

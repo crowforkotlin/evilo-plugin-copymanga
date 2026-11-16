@@ -1,0 +1,136 @@
+name: Publish signed plugin
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: Existing source tag (vX.Y.Z)
+        required: true
+        type: string
+      republish:
+        description: Restore Release assets from immutable Git files without building or signing
+        required: false
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: plugin-release
+  cancel-in-progress: false
+jobs:
+  package:
+    if: ${{ !inputs.republish }}
+    runs-on: ubuntu-24.04
+    outputs:
+      source_tag: ${{ steps.identity.outputs.source_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_tag || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Resolve committed release identity
+        id: identity
+        env:
+          SOURCE_TAG: ${{ inputs.source_tag || github.ref_name }}
+          PLUGIN_MODULE: ${{ vars.PLUGIN_MODULE }}
+        run: python3 -I .github/scripts/release_identity.py
+      - name: Check optional SDK configuration
+        env:
+          SDK_REPOSITORY: ${{ vars.EVILO_SDK_REPOSITORY }}
+          SDK_REVISION: ${{ vars.EVILO_SDK_REVISION }}
+        run: |
+          if [[ -n "$SDK_REPOSITORY" || -n "$SDK_REVISION" ]]; then
+            [[ "$SDK_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || exit 1
+            [[ "$SDK_REVISION" =~ ^[0-9a-f]{40}$ ]] || { printf 'Pin EVILO_SDK_REVISION to a full commit.\n'; exit 1; }
+          fi
+      - uses: actions/checkout@v4
+        if: ${{ vars.EVILO_SDK_REPOSITORY != '' }}
+        with:
+          repository: ${{ vars.EVILO_SDK_REPOSITORY }}
+          ref: ${{ vars.EVILO_SDK_REVISION }}
+          path: sdk-checkout
+          persist-credentials: false
+      - name: Keep optional SDK outside the source archive
+        if: ${{ vars.EVILO_SDK_REPOSITORY != '' }}
+        run: mv sdk-checkout "$RUNNER_TEMP/evilo-sdk"
+      - name: Restore preserved publisher identity
+        env:
+          EVILO_PRIVATE_KEY_HEX: ${{ secrets.EVILO_PRIVATE_KEY_HEX }}
+          EVILO_KEY_ID: ${{ vars.EVILO_KEY_ID || 'evilo-root-v1' }}
+        run: python3 -I .github/scripts/publisher_key.py "$RUNNER_TEMP/evilo-authority"
+      - name: Export signed public package
+        env:
+          MODULE: ${{ steps.identity.outputs.module }}
+          VERSION: ${{ steps.identity.outputs.version }}
+          PLUGIN_ID: ${{ steps.identity.outputs.plugin_id }}
+          REVISION: ${{ steps.identity.outputs.revision }}
+          BASE_URL: ${{ steps.identity.outputs.base_url }}
+          SOURCE_URL: ${{ steps.identity.outputs.source_url }}
+        run: |
+          trap 'rm -rf -- "$RUNNER_TEMP/evilo-authority"' EXIT
+          sdk_args=()
+          if [[ -d "$RUNNER_TEMP/evilo-sdk" ]]; then sdk_args+=("-Pevilo.sdkPath=$RUNNER_TEMP/evilo-sdk"); fi
+          ./gradlew ":$MODULE:exportPluginRelease" "${sdk_args[@]}" \
+            "-Pevilo.signingKeyDirectory=$RUNNER_TEMP/evilo-authority" \
+            "-Pplugin.sourceRevision=$REVISION" \
+            "-Pplugin.releaseBaseUrl=$BASE_URL" \
+            "-Pplugin.sourceUrl=https://github.com/$GITHUB_REPOSITORY" \
+            "-Pplugin.sourceSnapshotUrl=$SOURCE_URL" \
+            "-Pplugin.publishedAt=$(date -u +%Y-%m-%d)" \
+            -Pwasmline.autoDownload=true \
+            --no-daemon --no-configuration-cache --no-build-cache
+          python3 -I .github/scripts/export_bundle.py "$MODULE/build/release/$PLUGIN_ID-$VERSION" "$RUNNER_TEMP/public-package"
+      - name: Remove restored private signing files
+        if: ${{ always() }}
+        run: rm -rf -- "$RUNNER_TEMP/evilo-authority"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-public-package
+          path: ${{ runner.temp }}/public-package/
+          if-no-files-found: error
+          retention-days: 7
+  publish:
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.package.outputs.source_tag }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-public-package
+          path: ${{ runner.temp }}/downloaded-public-package
+      - name: Publish immutable files, catalog and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: python3 -I .github/scripts/publish_release.py "$RUNNER_TEMP/downloaded-public-package"
+  republish:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.republish }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Restore GitHub Release from immutable package files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          SOURCE_TAG: ${{ inputs.source_tag }}
+        run: python3 -I .github/scripts/restore_release.py "$SOURCE_TAG"

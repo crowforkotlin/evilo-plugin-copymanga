@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from urllib.parse import urlencode
 import zipfile
 
 
@@ -20,6 +21,10 @@ def git(*args):
 
 def read_blob(ref, path):
     return subprocess.check_output(['git', 'show', f'{ref}:{path}'])
+
+
+def api(endpoint, *args):
+    return json.loads(subprocess.check_output(['gh', 'api', endpoint, *args], text=True))
 
 
 def remote_tag(name):
@@ -36,8 +41,7 @@ def release_record(repository, tag):
     # Listing includes drafts, which the published-release-by-tag endpoint can omit.
     page = 1
     while True:
-        records = json.loads(subprocess.check_output(['gh', 'api',
-            f'repos/{repository}/releases?per_page=100&page={page}'], text=True))
+        records = api(f'repos/{repository}/releases?per_page=100&page={page}')
         record = next((entry for entry in records if entry['tag_name'] == tag), None)
         if record is not None:
             return record
@@ -46,7 +50,7 @@ def release_record(repository, tag):
         page += 1
 
 
-def verify_assets(record, expected, repository, tag, directory):
+def verify_assets(record, expected, repository):
     assets = {}
     for asset in record['assets']:
         if asset['name'] in assets:
@@ -56,16 +60,15 @@ def verify_assets(record, expected, repository, tag, directory):
     for path in expected:
         asset = assets.get(path.name)
         if asset is None:
-            missing.append(str(path))
+            missing.append(path)
             continue
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         remote_digest = asset.get('digest')
         if not remote_digest:
-            downloaded = directory / path.name
-            if not downloaded.exists():
-                run('gh', 'release', 'download', tag, '--repo', repository,
-                    '--pattern', path.name, '--dir', str(directory))
-            remote_digest = 'sha256:' + hashlib.sha256(downloaded.read_bytes()).hexdigest()
+            value = subprocess.check_output(['gh', 'api',
+                f'repos/{repository}/releases/assets/{asset["id"]}',
+                '--header', 'Accept: application/octet-stream'])
+            remote_digest = 'sha256:' + hashlib.sha256(value).hexdigest()
         if asset['size'] != path.stat().st_size or remote_digest != 'sha256:' + digest:
             raise SystemExit(f'Existing asset {path.name} differs; never overwrite it.')
     return missing
@@ -143,24 +146,26 @@ def main():
             path = directory / name
             path.write_bytes(files[name])
             expected.append(path)
-        downloaded = directory / 'existing-assets'
-        downloaded.mkdir()
         record = release_record(repository, tag)
         if record is None:
-            run('gh', 'release', 'create', tag, '--repo', repository, '--verify-tag', '--draft',
-                '--title', f'{plugin["name"]} {version}', '--notes',
+            notes = (
                 f'Signed plugin release. Subscribe to https://raw.githubusercontent.com/{repository}/{os.environ["DEFAULT_BRANCH"]}/plugins.json. '
                 f'Immutable package files: {file_tag}. Catalog publication date: {release["publishedAt"]}. '
-                'A signature does not establish code safety.')
-            record = release_record(repository, tag)
-        missing = verify_assets(record, expected, repository, tag, downloaded)
-        if missing:
-            run('gh', 'release', 'upload', tag, '--repo', repository, *missing)
-        record = release_record(repository, tag)
-        if verify_assets(record, expected, repository, tag, downloaded):
+                'A signature does not establish code safety.'
+            )
+            # Use the creation response directly; the Release list may not reflect a new draft yet.
+            record = api(f'repos/{repository}/releases', '--method', 'POST',
+                '--raw-field', f'tag_name={tag}', '--raw-field', f'name={plugin["name"]} {version}',
+                '--raw-field', f'body={notes}', '--field', 'draft=true')
+        endpoint = f'repos/{repository}/releases/{record["id"]}'
+        for path in verify_assets(record, expected, repository):
+            api(f'https://uploads.github.com/{endpoint}/assets?{urlencode({"name": path.name})}',
+                '--method', 'POST', '--header', 'Content-Type: application/octet-stream', '--input', str(path))
+        record = api(endpoint)
+        if verify_assets(record, expected, repository):
             raise SystemExit('GitHub Release is missing required public assets.')
         if record['draft']:
-            run('gh', 'release', 'edit', tag, '--repo', repository, '--draft=false')
+            api(endpoint, '--method', 'PATCH', '--field', 'draft=false')
         print(f'https://github.com/{repository}/releases/tag/{tag}')
 
 

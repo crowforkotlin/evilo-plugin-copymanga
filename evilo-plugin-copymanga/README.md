@@ -18,22 +18,42 @@ The reference and upstream Wasmline repositories remain unchanged.
 | --- | --- |
 | Search | `/api/v3/search/comic`, UTF-8 encoded `q`, all-field `q_type=`, 20 results per requested page |
 | Empty search | `/api/v3/comics?free_type=1`, catalog pagination |
-| Details | `/api/v3/comic2/{pathword}`, retaining the source-qualified ID |
-| Chapters | Discover groups through details, then paginate `/api/v3/comic/{pathword}/group/{group}/chapters` with requested limit 100 |
-| Image pages | `/api/v3/comic/{pathword}/chapter2/{uuid}`, order by the parallel `words` list and assign zero-based indexes |
+| Details | `/api/v3/comic2/{pathword}?platform=3` on a `mapi.*` mirror, retaining the source-qualified ID |
+| Chapters | Discover groups through details, then paginate `/api/v3/comic/{pathword}/group/{group}/chapters?limit=500&offset=…&platform=3` on the same mirror |
+| Image pages | `/api/v3/comic/{pathword}/chapter/{uuid}?platform=3` on the mirror, order by the parallel `words` list and assign zero-based indexes |
 
 `evilo-plugin-copymanga/plugin.json` is the release descriptor/metadata source of truth. The current
-plugin ID is `crow.evilo.source.copymanga`, version `1.0.0`, version code `1`,
+plugin ID is `crow.evilo.source.copymanga`, version `1.0.1`, version code `2`,
 language `zh`, and media kind `manga`. The guest passes the generated descriptor ID and version to `CopyMangaSource`; the core has no generated-field dependency. Media URLs are actual API resource URLs,
 not invented website addresses; requests are reconstructed from IDs.
 
-The packaged entrypoint uses `https://api.copy202602.com` and region `1`.
-`CopyMangaConfig` also accepts `https://api.mangacopy.com` and region `0`. To use
-that variant, pass the configuration to `CopyMangaSource` in its WASI entrypoint.
-There is no runtime settings service, automatic origin failover, or proxy.
+### Host split
 
-API requests use `platform=1`, `version=2025.08.08`, the reference Safari UA,
-and fresh `X-Auth-Timestamp`, `tapString`, and HMAC-SHA256 `X-Auth-Signature`.
+CopyManga serves its API from two host families, and the split is enforced
+server-side rather than by request parameters:
+
+| Role | Default | Behavior |
+| --- | --- | --- |
+| Catalog and search | `https://api.copy202601.com` | `/api/v3/comics` and `/api/v3/search/comic` return data; `/api/v3/comic2/{pathword}` answers `code: 200` with `results: null` |
+| Details, chapters, images | `https://mapi.hotmangasd.com` | `/api/v3/comic2/…`, chapter lists, and `/chapter/` return data; `/chapter2/` is `404` |
+
+`CopyMangaConfig` therefore carries two origins, both validated against the
+reviewed allowlists in `CopyMangaConfig.LIST_BASE_URLS` and
+`CopyMangaConfig.CONTENT_BASE_URLS`. Defaults are the first entries; the
+alternates are `api.copy202602.com`, `api.copy-manga.com`,
+`api.copy2000.online`, `api.mangacopy.com` and `mapi.hotmangasg.com`,
+`mapi.hotmangasf.com`, `mapi.elfgjfghkk.club`, `mapi.fgjfghkkcenter.club`,
+`mapi.fgjfghkk.club`. Passing a list host as the content origin, or the reverse,
+is rejected instead of failing at request time. There is no runtime settings
+service, automatic failover, or proxy.
+
+API requests use `platform: 3`, `version: 3.1.1`, `webp: 1`,
+`source: copyApp`, `User-Agent: COPY/3.1.1`, `Accept: application/json`, and
+`Referer: com.copymanga.app-3.1.1`, plus fresh `X-Auth-Timestamp`, `tapString`,
+and HMAC-SHA256 `X-Auth-Signature`. The version window the server accepts is
+`3.0.0`–`3.1.1`; `platform` values other than `3` and older client versions are
+rejected with `code: 210`. The mirrors additionally require `platform`,
+`version`, and `webp`; dropping any of them returns a non-JSON error page.
 The injectable Kotlin clock and KotlinCrypto HMAC work in portable plugin code.
 The provider's client protocol key is not the application's Ed25519 signing key.
 The plugin does not send analytics device IDs, blank authorization, or cookies,
@@ -67,13 +87,23 @@ cannot be installed by the new generic app.
 
 ## Host approvals and limits
 
-`plugin.json` explicitly declares both HTTPS API origins, GET under `/api/v3/`,
-and only the provider's required header names. Media permission currently names
-`https://hi77-overseas.mangafuna.xyz`, from the reference, with GET and UA/Accept
-only. API signatures and account credentials are not inherited by images.
-An undeclared CDN is rejected; a publisher must update the signed permission
-specification, release a new version, and ask the user to approve it. There is
-no manual host/key form or automatic CDN approval in the new app.
+`plugin.json` declares all eleven HTTP API origins — the five list hosts and the
+six `mapi.*` mirrors — GET under `/api/v3/`, and exactly the header names the
+source sends: `user-agent`, `accept`, `source`, `platform`, `version`, `webp`,
+`referer`, `x-auth-timestamp`, `tapstring`, `x-auth-signature`. The `region`
+header and the signature-adjacent device/`pseudoid`/`dt` headers were dropped;
+none of them changes a response today.
+
+Media permission names the 27 image hosts the CDN actually uses: `s3` and
+`sa`–`sz` plus `s0`. Cover and page URLs come back on whichever single-letter
+host matches the URL's own first path segment (`sm` ↔ `/m/`), so every letter
+must be approved; wildcards are not supported. The dead
+`hi77-overseas.mangafuna.xyz` domain was removed. Media requests carry only
+`User-Agent`; the CDN answers `403` without one, and API headers are not
+inherited by images. An undeclared CDN is rejected by the host, so a publisher
+must update the signed permission specification, release a new version, and
+ask the user to approve it. There is no manual host/key form or automatic CDN
+approval in the new app.
 
 The host disables redirects, cookies, and ambient credentials, bounds requests
 at 30 seconds/four concurrent exchanges per transport, limits API responses to
@@ -137,9 +167,13 @@ are not implemented. An old installed APK is not changed by edits to these sourc
 
 ## Manual tests
 
-These are optional test instructions, not recorded test results. The `1.0.0` guest
-was built and signed for publication; parser tests and live API requests were not
-run. Tests use local JSON and an injectable clock, not live provider requests.
+`jvmTest` and `wasmWasiNodeTest` pass for this source on the configured JDK and
+Node.js. Both use local JSON fixtures and an injectable clock, so they do not
+contact the provider. A separate uncommitted smoke run exercised the live flow
+once on 2026-11-17 — search, details, chapter pagination, images, and one image
+download — against the default hosts; that run is not part of the test suite and
+does not establish continued availability.
+
 Use the configured JDK and a compatible Node.js for WASI.
 
 ```sh
@@ -149,5 +183,5 @@ Use the configured JDK and a compatible Node.js for WASI.
 ```
 
 Host catalog, protocol, HTTP, storage, cancellation, and image-decoder commands
-are documented separately in evilo's README. A passing parser test, when run,
-would not establish live API availability or successful signed plugin loading.
+are documented separately in evilo's README. A passing parser test does not
+establish live API availability or successful signed plugin loading.

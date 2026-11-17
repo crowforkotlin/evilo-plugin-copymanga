@@ -18,9 +18,26 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlin.time.Clock
 
+/** Page size for `/api/v3/comics` and `/api/v3/search/comic`; their caps are 50 and 30. */
 private const val SEARCH_PAGE_SIZE = 20
-private const val CHAPTER_PAGE_SIZE = 100
 
+/** Page size for chapter lists; the server rejects `limit` above 500 with `code: 210`. */
+private const val CHAPTER_PAGE_SIZE = 500
+
+/**
+ * CopyManga manga source.
+ *
+ * The provider is split across two host families (see [CopyMangaConfig]): catalog and
+ * search calls go to `api.*`, while details, chapter lists, and chapter images only
+ * exist on `mapi.*`. Every request therefore carries the reviewed client identity
+ * (`platform: 3`, `version: 3.1.1`, `webp: 1`) plus the optional signature headers that
+ * the official client always sends.
+ *
+ * @param sourceId descriptor ID of the guest package; decides which manga IDs are ours.
+ * @param sourceVersion descriptor version reported through [metadata].
+ * @param config endpoint selection; validated against the reviewed host allowlists.
+ * @param clock time source for the authentication timestamp.
+ */
 class CopyMangaSource(
     private val sourceId: String,
     private val sourceVersion: String,
@@ -48,7 +65,10 @@ class CopyMangaSource(
         } else {
             "/api/v3/search/comic?q=${encodeComponent(query)}&q_type="
         }
-        return request("${config.apiBaseUrl}$path&offset=$offset&limit=$SEARCH_PAGE_SIZE")
+        return request(
+            "${config.listBaseUrl}$path&offset=$offset&limit=$SEARCH_PAGE_SIZE" +
+                "&platform=${CopyMangaSigner.PLATFORM}",
+        )
     }
 
     override fun parseSearch(query: String, page: Int, response: SourceResponse): MangaSearchResult {
@@ -79,8 +99,10 @@ class CopyMangaSource(
         return comic.toManga(manga)
     }
 
-    override fun chaptersRequest(manga: Manga): SourceChapterRequest =
-        SourceChapterRequest(request = detailsRequest(manga))
+    override fun chaptersRequest(manga: Manga): SourceChapterRequest {
+        requireSource(manga.id)
+        return SourceChapterRequest(request = request(detailsUrl(manga.id.value)))
+    }
 
     override fun parseChapters(
         manga: Manga,
@@ -179,6 +201,9 @@ class CopyMangaSource(
         }
         val images = checkNotNull(contents.contents) { "CopyManga page results contain no contents." }
         check(images.isNotEmpty()) { "CopyManga chapter ${chapter.id} contains no images." }
+        check(contents.size == null || contents.size == images.size) {
+            "CopyManga chapter size ${contents.size} does not match ${images.size} returned images."
+        }
         val words = contents.words.orEmpty()
         // zip() would silently discard images if the API returned a partial order list.
         check(words.isEmpty() || words.size == images.size) { "CopyManga image order length does not match contents." }
@@ -198,29 +223,43 @@ class CopyMangaSource(
         }
     }
 
+    /**
+     * Builds a request carrying the reviewed client identity.
+     *
+     * `platform: 3` and `version: 3.1.1` are mandatory on both host families; `webp: 1`
+     * selects the WebP image profiles. The signature headers are informational today.
+     */
     private fun request(url: String): SourceRequest = SourceRequest(
         url = url,
         headers = mapOf(
             "User-Agent" to CopyMangaSigner.USER_AGENT,
             "Accept" to "application/json",
-            "platform" to "1",
+            "source" to CopyMangaSigner.SOURCE,
+            "platform" to CopyMangaSigner.PLATFORM,
             "version" to CopyMangaSigner.CLIENT_VERSION,
-            "region" to config.region,
-            "webp" to "1",
-            "referer" to "com.copymanga.app-2.5.0",
+            "webp" to CopyMangaSigner.WEBP,
+            "referer" to CopyMangaSigner.REFERER,
         ) + CopyMangaSigner.authHeaders(clock.now().epochSeconds),
     )
 
     private fun detailsUrl(mangaId: String): String =
-        "${config.apiBaseUrl}/api/v3/comic2/${encodePathSegment(mangaId)}"
+        "${config.contentBaseUrl}/api/v3/comic2/${encodePathSegment(mangaId)}?platform=${CopyMangaSigner.PLATFORM}"
 
+    /**
+     * Chapter images live under `/chapter/`, not `/chapter2/`.
+     *
+     * `/chapter2/` is the guest route of the legacy public hosts and answers 404 on the
+     * mirrors; `/chapter/` is the route the mirrors serve.
+     */
     private fun pagesUrl(mangaId: String, chapterId: String): String =
-        "${config.apiBaseUrl}/api/v3/comic/${encodePathSegment(mangaId)}/chapter2/${encodePathSegment(chapterId)}"
+        "${config.contentBaseUrl}/api/v3/comic/${encodePathSegment(mangaId)}/chapter/" +
+            "${encodePathSegment(chapterId)}?platform=${CopyMangaSigner.PLATFORM}"
 
     private fun chaptersUrl(context: CopyMangaChapterContext): String {
         val group = context.groups[context.groupIndex]
-        return "${config.apiBaseUrl}/api/v3/comic/${encodePathSegment(context.mangaId)}" +
-            "/group/${encodePathSegment(group.pathWord)}/chapters?offset=${context.offset}&limit=$CHAPTER_PAGE_SIZE"
+        return "${config.contentBaseUrl}/api/v3/comic/${encodePathSegment(context.mangaId)}" +
+            "/group/${encodePathSegment(group.pathWord)}/chapters" +
+            "?limit=$CHAPTER_PAGE_SIZE&offset=${context.offset}&platform=${CopyMangaSigner.PLATFORM}"
     }
 
     private fun chapterRequest(context: CopyMangaChapterContext): SourceChapterRequest = SourceChapterRequest(
@@ -228,6 +267,13 @@ class CopyMangaSource(
         context = json.encodeToString(context),
     )
 
+    /**
+     * Decodes one API envelope and its `results` payload.
+     *
+     * `code` may be a number or a numeric string. A `null` payload with `code: 200` means
+     * the request reached a host that does not serve this resource, so it fails instead of
+     * passing an empty result to the parser.
+     */
     private inline fun <reified Result> readResults(response: SourceResponse): Result {
         if (response.statusCode !in 200..299) {
             throw CopyMangaApiException(response.statusCode, null, "CopyManga HTTP ${response.statusCode}.")
@@ -242,7 +288,10 @@ class CopyMangaSource(
             )
         }
         var results = envelope.results
-        check(results != null && results != JsonNull) { "CopyManga API returned no results." }
+        check(results != null && results != JsonNull) {
+            "CopyManga returned an empty payload; comic details, chapters, and images are only served by the " +
+                "mapi.* mirrors while catalog and search use api.*."
+        }
         if (results is JsonPrimitive && results.isString) {
             results = json.parseToJsonElement(results.content)
         }
@@ -305,6 +354,12 @@ class CopyMangaSource(
         }
     }
 
+    /**
+     * Accepts only absolute HTTPS image URLs.
+     *
+     * The CDN returns protocol-relative URLs from some routes and rejects requests that
+     * carry no `User-Agent`, so the page headers always include one.
+     */
     private fun imageUrl(value: String): String {
         val url = if (value.startsWith("//")) "https:$value" else value
         check(url.startsWith("https://") && url.length > "https://".length) {
@@ -314,6 +369,12 @@ class CopyMangaSource(
     }
 }
 
+/**
+ * A rejected CopyManga call, keeping the transport status and the API `code` apart.
+ *
+ * @property httpStatusCode HTTP status of the response.
+ * @property apiCode `code` field of the envelope when one was returned, as text.
+ */
 class CopyMangaApiException(
     val httpStatusCode: Int,
     val apiCode: String?,

@@ -44,19 +44,23 @@ class CopyMangaSourceTest {
     }
 
     @Test
-    fun searchEncodesUtf8AndQueryDelimiters() {
+    fun searchEncodesUtf8AndQueryDelimitersOnTheListHost() {
         val request = source.searchRequest("\u6f2b\u753b &?#", 2)
         assertEquals(
-            CopyMangaConfig.PRIMARY_API_URL +
-                "/api/v3/search/comic?q=%E6%BC%AB%E7%94%BB%20%26%3F%23&q_type=&offset=20&limit=20",
+            CopyMangaConfig.PRIMARY_LIST_URL +
+                "/api/v3/search/comic?q=%E6%BC%AB%E7%94%BB%20%26%3F%23&q_type=&offset=20&limit=20&platform=3",
             request.url,
         )
-        assertEquals("1", request.headers["platform"])
-        assertEquals(CopyMangaSigner.CLIENT_VERSION, request.headers["version"])
-        assertEquals(CopyMangaSigner.USER_AGENT, request.headers["User-Agent"])
+        assertEquals("3", request.headers["platform"])
+        assertEquals("3.1.1", request.headers["version"])
+        assertEquals("COPY/3.1.1", request.headers["User-Agent"])
+        assertEquals("application/json", request.headers["Accept"])
+        assertEquals("copyApp", request.headers["source"])
+        assertEquals("1", request.headers["webp"])
+        assertEquals("com.copymanga.app-3.1.1", request.headers["referer"])
         assertEquals("1700000000", request.headers["X-Auth-Timestamp"])
         assertEquals("1700000000", request.headers["tapString"])
-        assertFalse(request.headers.containsKey("source"))
+        assertFalse(request.headers.containsKey("region"))
         assertFalse(request.headers.containsKey("dt"))
         assertFalse(request.headers.containsKey("PmxApi"))
         assertFalse(request.headers.containsKey("authorization"))
@@ -65,7 +69,7 @@ class CopyMangaSourceTest {
     @Test
     fun blankSearchBrowsesTheComicCatalog() {
         assertEquals(
-            CopyMangaConfig.PRIMARY_API_URL + "/api/v3/comics?free_type=1&offset=0&limit=20",
+            CopyMangaConfig.PRIMARY_LIST_URL + "/api/v3/comics?free_type=1&offset=0&limit=20&platform=3",
             source.searchRequest("", 1).url,
         )
     }
@@ -88,34 +92,55 @@ class CopyMangaSourceTest {
     }
 
     @Test
-    fun configuredApiOriginsDoNotAcceptArbitraryHostsOrCredentials() {
-        val secondary = CopyMangaSource(TEST_SOURCE_ID, TEST_SOURCE_VERSION, CopyMangaConfig(CopyMangaConfig.SECONDARY_API_URL, "0"), clock)
-        val request = secondary.detailsRequest(manga)
-        assertTrue(request.url.startsWith(CopyMangaConfig.SECONDARY_API_URL + "/"))
-        assertEquals("0", request.headers["region"])
+    fun configuredHostsMustComeFromTheReviewedAllowlists() {
+        val alternates = CopyMangaSource(
+            TEST_SOURCE_ID,
+            TEST_SOURCE_VERSION,
+            CopyMangaConfig(
+                CopyMangaConfig.SECONDARY_LIST_URL,
+                CopyMangaConfig.SECONDARY_CONTENT_URL,
+            ),
+            clock,
+        )
+        assertTrue(
+            alternates.detailsRequest(manga).url.startsWith(CopyMangaConfig.SECONDARY_CONTENT_URL + "/"),
+            "Details must follow the configured mirror.",
+        )
+        assertTrue(
+            alternates.searchRequest("example", 1).url.startsWith(CopyMangaConfig.SECONDARY_LIST_URL + "/"),
+            "Search must follow the configured list host.",
+        )
         for (url in listOf(
             "https://untrusted.invalid",
-            "http://api.copy202602.com",
-            "https://api.copy202602.com@untrusted.invalid",
-            "https://api.copy202602.com/path",
+            "http://api.copy202601.com",
+            "https://api.copy202601.com@untrusted.invalid",
+            "https://api.copy202601.com/path",
         )) {
-            assertFailsWith<IllegalArgumentException> { CopyMangaConfig(url) }
+            assertFailsWith<IllegalArgumentException> { CopyMangaConfig(listBaseUrl = url) }
+            assertFailsWith<IllegalArgumentException> { CopyMangaConfig(contentBaseUrl = url) }
         }
-        assertFailsWith<IllegalArgumentException> { CopyMangaConfig(region = "3") }
+        // Details, chapters, and images are not served by the list hosts, so the two roles
+        // must not be interchangeable.
+        assertFailsWith<IllegalArgumentException> {
+            CopyMangaConfig(contentBaseUrl = CopyMangaConfig.PRIMARY_LIST_URL)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            CopyMangaConfig(listBaseUrl = CopyMangaConfig.PRIMARY_CONTENT_URL)
+        }
     }
 
     @Test
-    fun requestsUseSourceIdsInsteadOfInputUrls() {
+    fun requestsUseMirrorUrlsAndSourceIdsInsteadOfInputUrls() {
         assertEquals(
-            CopyMangaConfig.PRIMARY_API_URL + "/api/v3/comic2/example",
+            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic2/example?platform=3",
             source.detailsRequest(manga).url,
         )
         assertEquals(
-            CopyMangaConfig.PRIMARY_API_URL + "/api/v3/comic/example/chapter2/chapter-1",
+            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic/example/chapter/chapter-1?platform=3",
             source.pagesRequest(chapter).url,
         )
         val escaped = manga.copy(id = MangaId(TEST_SOURCE_ID, "a/b?#"))
-        assertTrue(source.detailsRequest(escaped).url.endsWith("a%2Fb%3F%23"))
+        assertTrue(source.detailsRequest(escaped).url.endsWith("a%2Fb%3F%23?platform=3"))
         assertFailsWith<IllegalArgumentException> {
             source.detailsRequest(manga.copy(id = MangaId(TEST_SOURCE_ID, "..")))
         }
@@ -134,7 +159,7 @@ class CopyMangaSourceTest {
                 "results":{
                     "offset":0,"limit":20,"total":2,
                     "list":[
-                        {"path_word":"first","name":"First","cover":"//images.invalid/first.jpg",
+                        {"path_word":"first","name":"First","cover":"//sa.mangafunb.fun/first.jpg",
                          "author":[{"name":" Author "},null,{"name":null},{"name":"Author"}],"unknown":true},
                         {"path_word":"second","name":"Second","cover":null,"brief":null,"author":null}
                     ]
@@ -144,9 +169,25 @@ class CopyMangaSourceTest {
         assertEquals(listOf("first", "second"), result.manga.map { it.id.value })
         assertTrue(result.manga.all { it.id.sourceId == TEST_SOURCE_ID })
         assertEquals(listOf("Author"), result.manga.first().authors)
-        assertEquals("https://images.invalid/first.jpg", result.manga.first().coverUrl)
+        assertEquals("https://sa.mangafunb.fun/first.jpg", result.manga.first().coverUrl)
         assertNull(result.manga.last().coverUrl)
         assertFalse(result.hasNextPage)
+    }
+
+    @Test
+    fun numericFieldsAreAcceptedAsNumbersOrStrings() {
+        val result = source.parseSearch("example", 1, response(
+            """{"code":200,"results":{"offset":"0","limit":"20","total":"1",
+                "list":[{"path_word":"only","name":"Only"}]}}""",
+        ))
+        assertEquals(listOf("only"), result.manga.map { it.id.value })
+        assertFalse(result.hasNextPage)
+        // A non-numeric total is a protocol violation, not "no more pages".
+        assertFailsWith<IllegalArgumentException> {
+            source.parseSearch("example", 1, response(
+                """{"code":200,"results":{"offset":0,"limit":20,"total":"many","list":[]}}""",
+            ))
+        }
     }
 
     @Test
@@ -197,6 +238,10 @@ class CopyMangaSourceTest {
         assertEquals(manga.coverUrl, result.coverUrl)
         assertEquals(manga.authors, result.authors)
         assertEquals(manga.description, result.description)
+        assertEquals(
+            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic2/example?platform=3",
+            result.url,
+        )
         assertFailsWith<IllegalStateException> {
             source.parseDetails(manga, response(
                 """{"code":200,"results":{"comic":{"path_word":"different","name":"Different"}}}""",
@@ -205,10 +250,22 @@ class CopyMangaSourceTest {
     }
 
     @Test
+    fun emptyDetailsPayloadNamesTheHostSplit() {
+        val failure = assertFailsWith<IllegalStateException> {
+            source.parseDetails(manga, response("""{"code":200,"results":null}"""))
+        }
+        assertTrue(assertNotNull(failure.message).contains("mapi.*"))
+    }
+
+    @Test
     fun chapterRequestsTraverseServerCappedPagesAndAllGroups() {
         val clock = MutableClock(1_700_000_000L)
         val source = CopyMangaSource(TEST_SOURCE_ID, TEST_SOURCE_VERSION, clock = clock)
         val start = source.chaptersRequest(manga)
+        assertEquals(
+            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic2/example?platform=3",
+            start.request.url,
+        )
         val discovery = source.parseChapters(manga, start, response(
             """{"code":200,"results":{
                 "comic":{"path_word":"example"},
@@ -220,7 +277,7 @@ class CopyMangaSourceTest {
         ))
         assertTrue(discovery.chapters.isEmpty())
         val firstRequest = assertNotNull(discovery.nextRequest)
-        assertTrue(firstRequest.request.url.endsWith("/group/default/chapters?offset=0&limit=100"))
+        assertTrue(firstRequest.request.url.endsWith("/group/default/chapters?limit=500&offset=0&platform=3"))
         assertNotNull(firstRequest.context)
         val first = source.parseChapters(manga, firstRequest, response(
             """{"code":200,"results":{"offset":0,"limit":1,"total":2,
@@ -228,15 +285,19 @@ class CopyMangaSourceTest {
         ))
         assertEquals("Main: First", first.chapters.single().title)
         assertEquals(1.0, first.chapters.single().number)
+        assertEquals(
+            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic/example/chapter/first?platform=3",
+            first.chapters.single().url,
+        )
         clock.seconds++
         val secondRequest = assertNotNull(first.nextRequest)
-        assertTrue(secondRequest.request.url.endsWith("/group/default/chapters?offset=1&limit=100"))
+        assertTrue(secondRequest.request.url.endsWith("/group/default/chapters?limit=500&offset=1&platform=3"))
         val second = source.parseChapters(manga, secondRequest, response(
             """{"code":200,"results":{"offset":1,"limit":1,"total":2,
                 "list":[{"uuid":"second","name":"Second","ordered":2}]}}""",
         ))
         val volumeRequest = assertNotNull(second.nextRequest)
-        assertTrue(volumeRequest.request.url.endsWith("/group/volume/chapters?offset=0&limit=100"))
+        assertTrue(volumeRequest.request.url.endsWith("/group/volume/chapters?limit=500&offset=0&platform=3"))
         assertNotEquals(secondRequest.request.headers["X-Auth-Timestamp"], volumeRequest.request.headers["X-Auth-Timestamp"])
         val volume = source.parseChapters(manga, volumeRequest, response(
             """{"code":200,"results":{"offset":0,"limit":100,"total":1,
@@ -293,11 +354,11 @@ class CopyMangaSourceTest {
     @Test
     fun pagesFollowTheWordsPermutationAndUseZeroBasedIndexes() {
         val pages = source.parsePages(chapter, response(
-            """{"code":200,"results":{"chapter":{"uuid":"chapter-1","comic_path_word":"example",
+            """{"code":200,"results":{"chapter":{"uuid":"chapter-1","comic_path_word":"example","size":3,
                 "words":[2,0,1],"contents":[
-                    {"url":"https://images.invalid/third.jpg"},
-                    {"url":"//images.invalid/first.jpg"},
-                    {"url":"https://images.invalid/second.jpg"}
+                    {"url":"https://sm.mangafunb.fun/m/third.jpg"},
+                    {"url":"//sa.mangafunb.fun/first.jpg"},
+                    {"url":"https://sb.mangafunb.fun/second.jpg"}
                 ]}}}""",
         ))
         assertEquals(listOf(0, 1, 2), pages.map { it.index })
@@ -309,21 +370,26 @@ class CopyMangaSourceTest {
     fun absentWordsPreserveTheReturnedImageOrder() {
         val pages = source.parsePages(chapter, response(
             """{"code":200,"results":{"chapter":{"words":null,"contents":[
-                {"url":"https://images.invalid/one.jpg"},{"url":"https://images.invalid/two.jpg"}
+                {"url":"https://sm.mangafunb.fun/m/one.jpg"},{"url":"https://sm.mangafunb.fun/m/two.jpg"}
             ]}}}""",
         ))
         assertEquals(listOf("one.jpg", "two.jpg"), pages.map { it.imageUrl.substringAfterLast('/') })
     }
 
     @Test
-    fun malformedPageOrderDoesNotSilentlyDropImages() {
-        for (words in listOf("[0]", "[0,0]", "[-1,0]")) {
+    fun malformedPageOrderAndSizeMismatchDoNotSilentlyDropImages() {
+        for (results in listOf(
+            """{"chapter":{"words":[0],"contents":[
+                {"url":"https://sm.mangafunb.fun/m/one.jpg"},{"url":"https://sm.mangafunb.fun/m/two.jpg"}]}}""",
+            """{"chapter":{"words":[0,0],"contents":[
+                {"url":"https://sm.mangafunb.fun/m/one.jpg"},{"url":"https://sm.mangafunb.fun/m/two.jpg"}]}}""",
+            """{"chapter":{"words":[-1,0],"contents":[
+                {"url":"https://sm.mangafunb.fun/m/one.jpg"},{"url":"https://sm.mangafunb.fun/m/two.jpg"}]}}""",
+            """{"chapter":{"size":1,"contents":[
+                {"url":"https://sm.mangafunb.fun/m/one.jpg"},{"url":"https://sm.mangafunb.fun/m/two.jpg"}]}}""",
+        )) {
             assertFailsWith<IllegalStateException> {
-                source.parsePages(chapter, response(
-                    """{"code":200,"results":{"chapter":{"words":$words,"contents":[
-                        {"url":"https://images.invalid/one.jpg"},{"url":"https://images.invalid/two.jpg"}
-                    ]}}}""",
-                ))
+                source.parsePages(chapter, response("""{"code":200,"results":$results}"""))
             }
         }
     }
@@ -336,7 +402,7 @@ class CopyMangaSourceTest {
             """{"chapter":{"uuid":"different","contents":[]}}""",
             """{"chapter":{"contents":[]}}""",
             """{"chapter":{"contents":[{"url":null}]}}""",
-            """{"chapter":{"contents":[{"url":"http://images.invalid/plain.jpg"}]}}""",
+            """{"chapter":{"contents":[{"url":"http://sm.mangafunb.fun/m/plain.jpg"}]}}""",
         )) {
             assertFailsWith<IllegalStateException> {
                 source.parsePages(chapter, response("""{"code":200,"results":$results}"""))
@@ -370,7 +436,7 @@ class CopyMangaSourceTest {
     }
 
     private fun response(body: String, statusCode: Int = 200): SourceResponse = SourceResponse(
-        url = CopyMangaConfig.PRIMARY_API_URL,
+        url = CopyMangaConfig.PRIMARY_LIST_URL,
         statusCode = statusCode,
         headers = emptyMap(),
         body = body,

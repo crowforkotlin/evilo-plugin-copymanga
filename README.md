@@ -63,7 +63,7 @@ gradle/                            Pinned dependencies and wrapper
 
 Root: `evilo-plugin-copymanga-root`. The guest passes its generated release ID and
 version to the portable core; the core does not depend on generated guest fields.
-Both consume `io.github.crowforkotlin.evilo:evilo-library:0.0.1`. If that version is
+Both consume `io.github.crowforkotlin.evilo:evilo-library:1.0.0`. If that version is
 not yet on Maven Central, use `-Pevilo.sdkPath=../evilo`. Protocol source is never
 copied.
 

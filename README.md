@@ -30,25 +30,25 @@ Wasmline signature verification remains mandatory, with the approved manifest
 digest pinned. A different publisher cannot replace an installed plugin by
 reusing its ID or access its publisher-scoped private key-value storage.
 
-The next CopyManga release version is `1.0.1`, sourced from tag `v1.0.1`. Workflow
-configuration does not establish that it has been built or published. New releases
-use immutable `package-vX.Y.Z` tags for raw release files, while the root catalog
-remains the stable subscription address.
+`1.0.0` is the current release, reissued from tag `v1.0.0` after its original
+uninstallable bytes were removed. Workflow configuration does not establish that
+it has been built or published. New releases use immutable `package-vX.Y.Z` tags
+for raw release files, while the root catalog remains the stable subscription
+address. The next new source uses `1.0.1`.
 
-Historical `1.0.0` download URLs remain pinned to tag `v1.0.0` under
-`releases/1.0.0/`. Its source snapshot is commit
-`b600122756e24b3bc7169f9c530c67b53c45771b`, which contains the actual implementation.
-If the GitHub Release is deleted, restore its assets from the original tag
-without rebuilding or signing. If that tag was also deleted remotely, push the
-preserved local tag rather than creating one at the current source commit.
+Version `1.0.0` was republished from rewrite tag `v1.0.0`. The original
+`releases/1.0.0/` bytes were signed by an official key pair that no longer exists,
+so the application rejected them with `Manifest signature verification failed`.
+Those files and the `CopyManga 1.0.0` Release were deleted; the tag now points at
+a commit signed by the current official key. No catalog ever offered an
+installable `1.0.0`, which is why the version and version code are reused rather
+than advanced.
 
-The root `plugins.json` now uses the compact catalog format and requires an app
-with evilo's new `CatalogParser` normalization. Kinds, languages, protocol, and
-permissions are declared once per plugin. Release `1.0.0` keeps its original
-version/code, publication time, source snapshot/commit/hash, and download URLs.
-The tag-pinned `releases/1.0.0/plugins.json` remains in the previous full format
-for older clients. Existing signed packages, artifacts, and source ZIPs are not
-rewritten by this catalog-format update.
+The root `plugins.json` uses the compact catalog format and requires an app with
+evilo's `CatalogParser` normalization. Kinds, languages, protocol, permissions,
+and the signing identity are declared once per plugin; the release pins its
+manifest digest. Older app builds that only understand the previous full-format
+catalog cannot subscribe to this source.
 
 ## Modules
 
@@ -116,7 +116,8 @@ source/package ZIP, or print it in logs.
 
 `.github/workflows/plugin-release.yml` is configured for `v*` tags and manual
 dispatch naming an existing tag on GitHub-hosted `ubuntu-24.04`. The version comes
-from `vX.Y.Z`; the next release uses `v1.0.1`, not a rewritten `v1.0.0`.
+from `vX.Y.Z`, and the tag must match `descriptor.version`. `v1.0.0` was rewritten
+once to replace uninstallable bytes; the next new source uses `v1.0.1`.
 
 `EVILO_PRIVATE_KEY_HEX` is the only required Secret; the repository variable
 `EVILO_PUBLIC_KEY_HEX` is required too, because export is refused without it.
@@ -193,12 +194,10 @@ attestations.
 its own immutable source link. An omitted creation date is derived by the app;
 an explicit one must not be after publication.
 
-Preserve the existing `1.0.0` package and source metadata; do not re-export it
-under a new signing identity or overwrite its tag-pinned files. Its signature
-predates the current official key, so its catalog entry keeps `usable: false`
-and users must upgrade to `1.0.1`. Restore a deleted
-Release from those immutable public files rather than deleting old package URLs.
-Use version `1.0.1` for the next release. Do not publish ignored preview artifacts
+The current `1.0.0` package is signed by the current official key; publish it from
+tag `v1.0.0` and never overwrite those files afterwards. Restore a deleted Release
+from the committed package files rather than rewriting the tag. Use version
+`1.0.1` for the next new source. Do not publish ignored preview artifacts
 or use preview signing keys. See the template README for external signing paths,
 SDK/toolchain requirements, and publication rules.
 

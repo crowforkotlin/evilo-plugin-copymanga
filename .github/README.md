@@ -62,10 +62,10 @@ Never overwrite old package files, reuse a version for different source, or
 replace an old source hash. Keep `main/plugins.json` as the subscription address;
 GitHub Release pages and ZIP URLs are not subscription catalogs.
 
-Removing a GitHub Release does not require deleting its source tag or immutable
-package files. Retain tag `v1.0.0`, existing package/download URLs, and historical
-catalog metadata. The next new CopyManga version is `1.0.1`, sourced from `v1.0.1`;
-restoring the historical `1.0.0` Release does not publish that new source.
+`1.0.0` is a deliberate exception: its only published bytes were uninstallable,
+so its Release assets were deleted and `v1.0.0` was rewritten to a commit signed
+by the current official key. Every later version follows the normal rule — use
+`1.0.1` for the next new source, sourced from `v1.0.1`, and never rewrite it.
 
 ## Recover a deleted or incomplete GitHub Release
 
@@ -119,12 +119,13 @@ The workflow and helper descriptions are configuration documentation, not
 execution records. New-version builds and public-asset recovery are separate
 operations.
 
-## Revoked release 1.0.0
+## Reissued release 1.0.0
 
-`1.0.0` was signed on 2026-11-10 with an official key pair that no longer exists
-locally; the current application embeds the pair generated on 2026-11-14. The
-envelope names `evilo-root-v1`, so verification reaches the signature check and
-fails with `Manifest signature verification failed`, not with an unknown-key
-error. Its immutable files stay published for provenance, but the catalog entry
-carries `usable: false` so users cannot select it. Only `1.0.1` and later, signed
-by the current official key, are installable.
+The original `1.0.0` was signed on 2026-11-10 with an official key pair that no
+longer exists locally; the current application embeds the pair generated on
+2026-11-14 and rejected it with `Manifest signature verification failed`. Its
+Release assets and `package-v*` tag were deleted and `v1.0.0` was rewritten to a
+commit signed by the current official key. Version `1.0.0` and version code `1`
+are reused because no valid `1.0.0` release was ever installable; the previous
+bytes remain reachable only through the old tag's reflog, not through any
+catalog entry.

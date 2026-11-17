@@ -66,7 +66,10 @@ jobs:
         env:
           EVILO_PRIVATE_KEY_HEX: ${{ secrets.EVILO_PRIVATE_KEY_HEX }}
           EVILO_KEY_ID: ${{ vars.EVILO_KEY_ID || 'evilo-root-v1' }}
-        run: python3 -I .github/scripts/publisher_key.py "$RUNNER_TEMP/evilo-authority"
+          APP_PUBLIC_KEY_HEX: ${{ vars.EVILO_PUBLIC_KEY_HEX }}
+        run: |
+          python3 -I .github/scripts/publisher_key.py "$RUNNER_TEMP/evilo-authority"
+          python3 -I .github/scripts/verify_app_key.py "$RUNNER_TEMP/evilo-authority/public.key" "$APP_PUBLIC_KEY_HEX"
       - name: Export signed public package
         env:
           MODULE: ${{ steps.identity.outputs.module }}

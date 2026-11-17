@@ -100,6 +100,12 @@ release key. Its default signing key ID is the existing official `evilo-root-v1`
 the optional repository variable `EVILO_KEY_ID` overrides that label. The app's
 `EVILO_PUBLIC_KEY_HEX` must contain the matching official public key.
 
+The repository variable `EVILO_PUBLIC_KEY_HEX` holds that same application key.
+The signing job compares it with the key derived from the Secret and stops before
+exporting when they differ, so a rotated or replaced Secret cannot silently
+publish packages that fail manifest verification at install time. `Check signing
+identity` performs only that comparison.
+
 Independent publishers generate their own private seed once locally, back it up
 privately, and configure their own repository Secret. The template defaults to
 `publisher-<fingerprint>` using a SHA-256 public-key fingerprint. Never request or
@@ -112,7 +118,9 @@ source/package ZIP, or print it in logs.
 dispatch naming an existing tag on GitHub-hosted `ubuntu-24.04`. The version comes
 from `vX.Y.Z`; the next release uses `v1.0.1`, not a rewritten `v1.0.0`.
 
-`EVILO_PRIVATE_KEY_HEX` is the only required Secret. `PLUGIN_MODULE` is
+`EVILO_PRIVATE_KEY_HEX` is the only required Secret; the repository variable
+`EVILO_PUBLIC_KEY_HEX` is required too, because export is refused without it.
+`PLUGIN_MODULE` is
 autodiscovered from the guest `plugin.json`; use an explicit selection only if
 needed. Optional repository variables `EVILO_SDK_REPOSITORY` and
 `EVILO_SDK_REVISION` select an unpublished SDK at a full immutable commit. That
@@ -186,7 +194,9 @@ its own immutable source link. An omitted creation date is derived by the app;
 an explicit one must not be after publication.
 
 Preserve the existing `1.0.0` package and source metadata; do not re-export it
-under a new signing identity or overwrite its tag-pinned files. Restore a deleted
+under a new signing identity or overwrite its tag-pinned files. Its signature
+predates the current official key, so its catalog entry keeps `usable: false`
+and users must upgrade to `1.0.1`. Restore a deleted
 Release from those immutable public files rather than deleting old package URLs.
 Use version `1.0.1` for the next release. Do not publish ignored preview artifacts
 or use preview signing keys. See the template README for external signing paths,

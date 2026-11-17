@@ -74,6 +74,7 @@
         {
           "version": "1.0.0",
           "versionCode": 1,
+          "usable": false,
           "manifestUrl": "https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/v1.0.0/releases/1.0.0/manifest.wlm",
           "sourceUrl": "https://github.com/crowforkotlin/evilo-plugin-copymanga/tree/b600122756e24b3bc7169f9c530c67b53c45771b",
           "sourceRevision": "b600122756e24b3bc7169f9c530c67b53c45771b",

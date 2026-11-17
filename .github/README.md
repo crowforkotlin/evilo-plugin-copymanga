@@ -18,11 +18,18 @@ Optional repository variables:
 
 - `EVILO_KEY_ID`: override this workflow's existing official key ID default,
   `evilo-root-v1`. A key ID is a label, not proof of trust.
+- `EVILO_PUBLIC_KEY_HEX`: the official public key embedded in the application
+  build, 64 lowercase hexadecimal characters. It is required: the signing job
+  refuses to export when the Secret derives a different key, because those
+  packages fail manifest verification at install time.
 - `PLUGIN_MODULE`: select the guest module explicitly if necessary; by default
   it is autodiscovered from the guest `plugin.json`.
 - `EVILO_SDK_REPOSITORY` and `EVILO_SDK_REVISION`: set both to use an unpublished
   SDK checkout pinned to a full immutable commit. This checkout is outside the
   plugin source archive. Without the override, use the published SDK dependency.
+
+`Check signing identity` runs the same comparison without building or signing;
+dispatch it after rotating a key and before tagging a release.
 
 The app receives the matching official public key through `EVILO_PUBLIC_KEY_HEX`,
 not the private seed. Independent publishers generate their own seed **once
@@ -111,3 +118,13 @@ not prove code safety. Users never enter private seeds or raw public-key fields.
 The workflow and helper descriptions are configuration documentation, not
 execution records. New-version builds and public-asset recovery are separate
 operations.
+
+## Revoked release 1.0.0
+
+`1.0.0` was signed on 2026-11-10 with an official key pair that no longer exists
+locally; the current application embeds the pair generated on 2026-11-14. The
+envelope names `evilo-root-v1`, so verification reaches the signature check and
+fails with `Manifest signature verification failed`, not with an unknown-key
+error. Its immutable files stay published for provenance, but the catalog entry
+carries `usable: false` so users cannot select it. Only `1.0.1` and later, signed
+by the current official key, are installable.

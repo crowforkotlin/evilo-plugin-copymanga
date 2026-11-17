@@ -1,0 +1,21 @@
+name: Check signing identity
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  identity:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Derive the public key from the preserved Secret
+        env:
+          EVILO_PRIVATE_KEY_HEX: ${{ secrets.EVILO_PRIVATE_KEY_HEX }}
+          EVILO_KEY_ID: ${{ vars.EVILO_KEY_ID || 'evilo-root-v1' }}
+          APP_PUBLIC_KEY_HEX: ${{ vars.EVILO_PUBLIC_KEY_HEX }}
+        run: |
+          trap 'rm -rf -- "$RUNNER_TEMP/evilo-authority"' EXIT
+          python3 -I .github/scripts/publisher_key.py "$RUNNER_TEMP/evilo-authority"
+          python3 -I .github/scripts/verify_app_key.py "$RUNNER_TEMP/evilo-authority/public.key" "$APP_PUBLIC_KEY_HEX"

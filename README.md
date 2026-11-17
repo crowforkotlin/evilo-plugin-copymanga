@@ -63,8 +63,9 @@ gradle/                            Pinned dependencies and wrapper
 
 Root: `evilo-plugin-copymanga-root`. The guest passes its generated release ID and
 version to the portable core; the core does not depend on generated guest fields.
-Both consume `io.github.crowforkotlin.evilo:evilo-library:1.0.0`. Before SDK
-publication, use `-Pevilo.sdkPath=../evilo`. Protocol source is never copied.
+Both consume `io.github.crowforkotlin.evilo:evilo-library:0.0.1`. If that version is
+not yet on Maven Central, use `-Pevilo.sdkPath=../evilo`. Protocol source is never
+copied.
 
 The generic guest wraps the SDK's `MangaPluginAdapter`; its internal parser uses
 manga API 2. See `evilo-plugin-copymanga/README.md` for API paths, headers,
@@ -119,27 +120,21 @@ dispatch naming an existing tag on GitHub-hosted `ubuntu-24.04`. The version com
 from `vX.Y.Z`, and the tag must match `descriptor.version`. `v1.0.0` was rewritten
 once to replace uninstallable bytes; the next new source uses `v1.0.1`.
 
-`EVILO_PRIVATE_KEY_HEX` is the only required Secret; the repository variable
+`EVILO_PRIVATE_KEY_HEX` is the required Secret; the repository variable
 `EVILO_PUBLIC_KEY_HEX` is required too, because export is refused without it.
-`PLUGIN_MODULE` is
-autodiscovered from the guest `plugin.json`; use an explicit selection only if
-needed. Optional repository variables `EVILO_SDK_REPOSITORY` and
-`EVILO_SDK_REVISION` select an unpublished SDK at a full immutable commit. That
-SDK checkout stays outside the plugin source archive; otherwise use the
-published dependency.
+`PLUGIN_MODULE` is autodiscovered from the guest `plugin.json`. The SDK comes
+from Maven Central at the version pinned by `evilo-plugin-sdk` in
+`gradle/libs.versions.toml`; update that pin when a new SDK is published.
 
 The read-only signing job restores the Secret to an external temporary signing
-directory, derives the public key/key ID, exports the release, and cleans up
-restored private material. The separate write-permission publish job receives
-only public files. It creates immutable `package-vX.Y.Z` raw release files,
-appends historical effective metadata to `main/plugins.json`, and creates a
-GitHub Release with a package ZIP and the exact source ZIP. Public package files
-include the signed manifest, referenced artifacts, icon, and versioned catalog.
-Never overwrite old package files, source hashes, or historical download URLs.
+directory, compares it with `EVILO_PUBLIC_KEY_HEX`, exports the release, and
+cleans up restored private material. The separate write-permission publish job
+receives only public files. It creates immutable `package-vX.Y.Z` raw release
+files, appends historical effective metadata to `main/plugins.json`, and creates
+a GitHub Release with a package ZIP and the exact source ZIP.
 
-A workflow file is configuration, not evidence that signing, publication, or
-tests have succeeded. See [.github/README.md](.github/README.md) for job boundaries
-and repository configuration. Existing manual export remains supported.
+Full procedure, including key creation, rotation, and failure modes, is in
+[docs/publishing.md](docs/publishing.md).
 
 ### Restore a deleted GitHub Release
 
@@ -194,12 +189,12 @@ attestations.
 its own immutable source link. An omitted creation date is derived by the app;
 an explicit one must not be after publication.
 
-The current `1.0.0` package is signed by the current official key; publish it from
-tag `v1.0.0` and never overwrite those files afterwards. Restore a deleted Release
-from the committed package files rather than rewriting the tag. Use version
-`1.0.1` for the next new source. Do not publish ignored preview artifacts
-or use preview signing keys. See the template README for external signing paths,
-SDK/toolchain requirements, and publication rules.
+The published `1.0.0` package is signed by the current official key; never
+overwrite those files. Restore a deleted Release from the committed package files
+rather than rewriting the tag. Do not publish ignored preview artifacts or use
+preview signing keys. Key creation, rotation, and step-by-step publication are in
+[docs/publishing.md](docs/publishing.md); the app side is in evilo's
+`docs/plugin-key-setup.md`.
 
 New-version builds and recovery of existing Release assets are separate
 operations. Configured workflow source is not a successful-run record.

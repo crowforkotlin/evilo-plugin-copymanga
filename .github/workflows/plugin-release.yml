@@ -43,25 +43,6 @@ jobs:
           SOURCE_TAG: ${{ inputs.source_tag || github.ref_name }}
           PLUGIN_MODULE: ${{ vars.PLUGIN_MODULE }}
         run: python3 -I .github/scripts/release_identity.py
-      - name: Check optional SDK configuration
-        env:
-          SDK_REPOSITORY: ${{ vars.EVILO_SDK_REPOSITORY }}
-          SDK_REVISION: ${{ vars.EVILO_SDK_REVISION }}
-        run: |
-          if [[ -n "$SDK_REPOSITORY" || -n "$SDK_REVISION" ]]; then
-            [[ "$SDK_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || exit 1
-            [[ "$SDK_REVISION" =~ ^[0-9a-f]{40}$ ]] || { printf 'Pin EVILO_SDK_REVISION to a full commit.\n'; exit 1; }
-          fi
-      - uses: actions/checkout@v4
-        if: ${{ vars.EVILO_SDK_REPOSITORY != '' }}
-        with:
-          repository: ${{ vars.EVILO_SDK_REPOSITORY }}
-          ref: ${{ vars.EVILO_SDK_REVISION }}
-          path: sdk-checkout
-          persist-credentials: false
-      - name: Keep optional SDK outside the source archive
-        if: ${{ vars.EVILO_SDK_REPOSITORY != '' }}
-        run: mv sdk-checkout "$RUNNER_TEMP/evilo-sdk"
       - name: Restore preserved publisher identity
         env:
           EVILO_PRIVATE_KEY_HEX: ${{ secrets.EVILO_PRIVATE_KEY_HEX }}
@@ -80,9 +61,7 @@ jobs:
           SOURCE_URL: ${{ steps.identity.outputs.source_url }}
         run: |
           trap 'rm -rf -- "$RUNNER_TEMP/evilo-authority"' EXIT
-          sdk_args=()
-          if [[ -d "$RUNNER_TEMP/evilo-sdk" ]]; then sdk_args+=("-Pevilo.sdkPath=$RUNNER_TEMP/evilo-sdk"); fi
-          ./gradlew ":$MODULE:exportPluginRelease" "${sdk_args[@]}" \
+          ./gradlew ":$MODULE:exportPluginRelease" \
             "-Pevilo.signingKeyDirectory=$RUNNER_TEMP/evilo-authority" \
             "-Pplugin.sourceRevision=$REVISION" \
             "-Pplugin.releaseBaseUrl=$BASE_URL" \

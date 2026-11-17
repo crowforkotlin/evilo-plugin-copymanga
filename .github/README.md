@@ -24,9 +24,8 @@ Optional repository variables:
   packages fail manifest verification at install time.
 - `PLUGIN_MODULE`: select the guest module explicitly if necessary; by default
   it is autodiscovered from the guest `plugin.json`.
-- `EVILO_SDK_REPOSITORY` and `EVILO_SDK_REVISION`: set both to use an unpublished
-  SDK checkout pinned to a full immutable commit. This checkout is outside the
-  plugin source archive. Without the override, use the published SDK dependency.
+- The SDK is resolved from Maven Central through `evilo-plugin-sdk` in
+  `gradle/libs.versions.toml`. No SDK checkout variable is needed.
 
 `Check signing identity` runs the same comparison without building or signing;
 dispatch it after rotating a key and before tagging a release.

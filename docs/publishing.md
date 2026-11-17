@@ -98,14 +98,14 @@ PY
 ## 3. Verify locally
 
 ```sh
-./gradlew :evilo-plugin-copymanga-core:jvmTest -Pevilo.sdkPath=../evilo
-./gradlew :evilo-plugin-copymanga-core:wasmWasiNodeTest -Pevilo.sdkPath=../evilo
+./gradlew :evilo-plugin-copymanga-core:jvmTest -Pevilo.sdkPath=../evilo-library
+./gradlew :evilo-plugin-copymanga-core:wasmWasiNodeTest -Pevilo.sdkPath=../evilo-library
 ./gradlew -p evilo-plugin-build-logic :plugin:test
 
 VERSION=1.0.1            # must equal descriptor.version
 ./gradlew :evilo-plugin-copymanga:exportPluginRelease \
   -Pevilo.signingKeyDirectory="$HOME/.evilo/signing" \
-  -Pevilo.sdkPath=../evilo \
+  -Pevilo.sdkPath=../evilo-library \
   -Pplugin.sourceRevision="$(git rev-parse HEAD)" \
   -Pplugin.releaseBaseUrl="https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/package-v$VERSION/releases/$VERSION" \
   -Pplugin.sourceUrl="https://github.com/crowforkotlin/evilo-plugin-copymanga" \
@@ -219,7 +219,8 @@ a new plugin release. Once users have builds, it is a breaking app release.
 | `The Secret derives a different public key than the application trusts.` | Secret and app key disagree; do not tag. |
 | `Official packages must use key ID evilo-root-v1` | `EVILO_KEY_ID` overridden away from the official label. |
 | `Missing publisher key` / `Invalid authority key format` | Secret absent, malformed, or restored inside the checkout. |
-| `Could not resolve io.github.crowforkotlin.evilo:evilo-library` | The pinned SDK version is not on Maven Central yet; see evilo's `docs/library-publishing.md`. |
+| `Could not resolve io.github.crowforkotlin.evilo:evilo-library` | The pinned SDK version is not on Maven Central yet; publish it locally from the `evilo-library`
+repository (`./gradlew publishToMavenLocal`) or use `-Pevilo.sdkPath=../evilo-library`. |
 | `Existing asset X differs; never overwrite it.` | Committed bytes changed after publication. |
 
 A workflow file is configuration, not evidence that a run signed or published

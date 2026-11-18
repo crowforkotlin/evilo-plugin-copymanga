@@ -23,7 +23,9 @@ providers.gradleProperty("wasmline.localPath").orNull?.let { includeBuild(it) }
 dependencyResolutionManagement {
     repositories {
         mavenCentral()
-        mavenLocal { content { includeGroup("io.github.crowforkotlin.evilo") } }
+        if (providers.gradleProperty("evilo.useLocalSdk").isPresent) {
+            mavenLocal { content { includeGroup("io.github.crowforkotlin.evilo") } }
+        }
     }
 }
 

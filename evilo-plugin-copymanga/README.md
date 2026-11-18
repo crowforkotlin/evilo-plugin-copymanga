@@ -127,7 +127,7 @@ Only the authority operator should export signed releases. From this repository 
 
 ```sh
 ./gradlew :evilo-plugin-copymanga:exportPluginRelease \
-  -Pevilo.sdkPath=../evilo-library \
+  -Pevilo.useLocalSdk \
   -Pplugin.sourceRevision="$SOURCE_COMMIT" \
   -Pplugin.releaseBaseUrl="$RELEASE_BASE_URL" \
   -Pplugin.sourceUrl="$SOURCE_REPOSITORY_URL" \
@@ -177,8 +177,8 @@ does not establish continued availability.
 Use the configured JDK and a compatible Node.js for WASI.
 
 ```sh
-./gradlew :evilo-plugin-copymanga-core:jvmTest -Pevilo.sdkPath=../evilo-library
-./gradlew :evilo-plugin-copymanga-core:wasmWasiNodeTest -Pevilo.sdkPath=../evilo-library
+./gradlew :evilo-plugin-copymanga-core:jvmTest -Pevilo.useLocalSdk
+./gradlew :evilo-plugin-copymanga-core:wasmWasiNodeTest -Pevilo.useLocalSdk
 ./gradlew -p evilo-plugin-build-logic :plugin:test
 ```
 

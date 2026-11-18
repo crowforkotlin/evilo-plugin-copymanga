@@ -64,7 +64,7 @@ gradle/                            Pinned dependencies and wrapper
 Root: `evilo-plugin-copymanga-root`. The guest passes its generated release ID and
 version to the portable core; the core does not depend on generated guest fields.
 Both consume `io.github.crowforkotlin.evilo:evilo-library:1.0.0`. If that version is
-not yet on Maven Central, use `-Pevilo.sdkPath=../evilo-library`. Protocol source is never
+not yet on Maven Central, use `-Pevilo.useLocalSdk`. Protocol source is never
 copied.
 
 The generic guest wraps the SDK's `MangaPluginAdapter`; its internal parser uses
@@ -167,7 +167,7 @@ served HTTPS source/release URLs:
 ```sh
 ./gradlew :evilo-plugin-copymanga:exportPluginRelease \
   -Pevilo.signingKeyDirectory="$PUBLISHER_SIGNING_DIRECTORY" \
-  -Pevilo.sdkPath=../evilo-library \
+  -Pevilo.useLocalSdk \
   -Pplugin.sourceRevision="$SOURCE_COMMIT" \
   -Pplugin.releaseBaseUrl="$RELEASE_BASE_URL" \
   -Pplugin.sourceUrl="https://github.com/crowforkotlin/evilo-plugin-copymanga" \
@@ -222,8 +222,8 @@ repository's GitHub fork relationship or publish signed plugin releases.
 These tests use local fixtures and an injected clock, not a live provider:
 
 ```sh
-./gradlew :evilo-plugin-copymanga-core:jvmTest -Pevilo.sdkPath=../evilo-library
-./gradlew :evilo-plugin-copymanga-core:wasmWasiNodeTest -Pevilo.sdkPath=../evilo-library
+./gradlew :evilo-plugin-copymanga-core:jvmTest -Pevilo.useLocalSdk
+./gradlew :evilo-plugin-copymanga-core:wasmWasiNodeTest -Pevilo.useLocalSdk
 ```
 
 Tests and plugin builds need a separate explicit execution request.

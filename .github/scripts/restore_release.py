@@ -88,7 +88,7 @@ def main():
     file_tag = package_tag if remote_tag(package_tag) else tag
     ref = 'refs/tags/' + file_tag
     prefix = f'releases/{version}/'
-    catalog_bytes = read_blob(ref, prefix + 'plugins.json')
+    catalog_bytes = read_blob(ref, prefix + 'catalog.json')
     plugin, = json.loads(catalog_bytes)['plugins']
     release, = plugin['availableVersions']
     if release['version'] != version or not re.fullmatch(r'[A-Za-z0-9_.-]+', plugin['id']):
@@ -107,7 +107,7 @@ def main():
             or release['sourceArchiveUrl'] != base + '/' + archive_name
             or plugin['iconUrl'] != base + '/icon.png'):
         raise SystemExit('Catalog URLs do not refer to the immutable package files.')
-    required = {'manifest.wlm', 'plugins.json', 'icon.png', archive_name}
+    required = {'manifest.wlm', 'catalog.json', 'icon.png', archive_name}
     files = {}
     for entry in subprocess.check_output(['git', 'ls-tree', '-r', '-z', ref, '--', prefix]).split(b'\0'):
         if not entry:
@@ -142,14 +142,14 @@ def main():
                 info.external_attr = 0o100644 << 16
                 archive.writestr(info, value)
         expected = [package]
-        for name in (archive_name, 'manifest.wlm', 'plugins.json', 'icon.png'):
+        for name in (archive_name, 'manifest.wlm', 'catalog.json', 'icon.png'):
             path = directory / name
             path.write_bytes(files[name])
             expected.append(path)
         record = release_record(repository, tag)
         if record is None:
             notes = (
-                f'Signed plugin release. Subscribe to https://raw.githubusercontent.com/{repository}/{os.environ["DEFAULT_BRANCH"]}/plugins.json. '
+                f'Signed plugin release. Subscribe to https://raw.githubusercontent.com/{repository}/{os.environ["DEFAULT_BRANCH"]}/catalog.json. '
                 f'Immutable package files: {file_tag}. Catalog publication date: {release["publishedAt"]}. '
                 'A signature does not establish code safety.'
             )

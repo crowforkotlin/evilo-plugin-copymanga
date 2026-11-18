@@ -23,7 +23,7 @@ Optional repository variables:
   refuses to export when the Secret derives a different key, because those
   packages fail manifest verification at install time.
 - `PLUGIN_MODULE`: select the guest module explicitly if necessary; by default
-  it is autodiscovered from the guest `plugin.json`.
+  it is autodiscovered from the guest `plugin-spec.json`.
 - The SDK is resolved from Maven Central through `evilo-plugin-sdk` in
   `gradle/libs.versions.toml`. No SDK checkout variable is needed.
 
@@ -50,15 +50,15 @@ The publish job has repository write permissions and:
 1. Creates immutable `package-vX.Y.Z` containing raw release files: the signed
    `manifest.wlm`, every referenced artifact, exact source ZIP/hash, icon, and
    versioned catalog.
-2. Appends the release to `main`'s stable root `plugins.json`, preserving older
-   releases' effective metadata. If common permissions, protocol, kinds,
-   languages, or source URL change, older entries get explicit overrides.
+2. Appends the release to `main`'s stable root `catalog.json`, preserving older
+   releases' effective metadata. If common kinds, languages, or
+   source URL change, older entries get explicit overrides.
 3. Creates a GitHub Release with a package ZIP and the exact source ZIP. The
    package includes public manifest, icon, and catalog files, not private keys
    or the optional external SDK checkout.
 
 Never overwrite old package files, reuse a version for different source, or
-replace an old source hash. Keep `main/plugins.json` as the subscription address;
+replace an old source hash. Keep `main/catalog.json` as the subscription address;
 GitHub Release pages and ZIP URLs are not subscription catalogs.
 
 `1.0.0` is a deliberate exception: its only published bytes were uninstallable,
@@ -73,7 +73,7 @@ Dispatch the current workflow from `main` with `source_tag=v1.0.0` and
 remotely, first push the preserved local `v1.0.0`; never recreate it at a new
 commit. The `republish` job skips the signing and package jobs and does not read
 the private-key Secret. It reads public files from `package-vX.Y.Z`, falling back
-to `vX.Y.Z` for legacy packages, without changing tags or `main/plugins.json`.
+to `vX.Y.Z` for legacy packages, without changing tags or `main/catalog.json`.
 
 ```sh
 gh workflow run plugin-release.yml --repo crowforkotlin/evilo-plugin-copymanga \
@@ -89,7 +89,7 @@ without a manifest digest retain their original bytes and signing metadata.
 
 ## Helper scripts
 
-- `scripts/release_identity.py` reads the sole guest `plugin.json` (or
+- `scripts/release_identity.py` reads the sole guest `plugin-spec.json` (or
   `PLUGIN_MODULE`), requires a clean checkout at `SOURCE_TAG=v<version>`, and
   writes metadata to `GITHUB_OUTPUT`. URLs derive from `GITHUB_REPOSITORY`.
 - `scripts/publisher_key.py DIRECTORY` restores the preserved Secret and derives public metadata outside the checkout. It does not generate keys.
@@ -108,7 +108,7 @@ source revision, release URL, and publication-date inputs.
 
 The app can read a third-party publisher's public key declared by a catalog,
 but subscribing does not trust it automatically. Approval applies to the exact
-version, public-key fingerprint, and permissions. Wasmline signature verification
+version and public-key fingerprint. Wasmline signature verification
 is mandatory and the approved manifest digest is pinned. Different publishers
 cannot replace an installed plugin by reusing its ID, and private key-value
 storage is scoped by publisher identity and plugin ID. A valid signature does

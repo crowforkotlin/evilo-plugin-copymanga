@@ -56,6 +56,7 @@ class CopyMangaSourceTest {
         assertEquals("COPY/3.1.1", request.headers["User-Agent"])
         assertEquals("application/json", request.headers["Accept"])
         assertEquals("copyApp", request.headers["source"])
+        assertEquals(CopyMangaSigner.UMSTRING, request.headers["umstring"])
         assertEquals("1", request.headers["webp"])
         assertEquals("com.copymanga.app-3.1.1", request.headers["referer"])
         assertEquals("1700000000", request.headers["X-Auth-Timestamp"])
@@ -69,7 +70,7 @@ class CopyMangaSourceTest {
     @Test
     fun blankSearchBrowsesTheComicCatalog() {
         assertEquals(
-            CopyMangaConfig.PRIMARY_LIST_URL + "/api/v3/comics?free_type=1&offset=0&limit=20&platform=3",
+            CopyMangaConfig.PRIMARY_LIST_URL + "/api/v3/comics?free_type=1&ordering=-datetime_updated&offset=0&limit=20&platform=3",
             source.searchRequest("", 1).url,
         )
     }

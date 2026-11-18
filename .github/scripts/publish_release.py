@@ -18,7 +18,7 @@ def git(*args):
 
 
 bundle = Path(sys.argv[1]).resolve()
-plugin, = json.loads((bundle / 'plugins.json').read_text())['plugins']
+plugin, = json.loads((bundle / 'catalog.json').read_text())['plugins']
 release, = plugin['availableVersions']
 version = release['version']
 if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?', version):
@@ -51,17 +51,17 @@ if target.exists():
     raise SystemExit('Release directory already exists.')
 with tempfile.TemporaryDirectory(prefix='evilo-publish-helper-') as directory:
     directory = Path(directory)
-    script, merged = directory / 'merge_catalog.py', directory / 'plugins.json'
+    script, merged = directory / 'merge_catalog.py', directory / 'catalog.json'
     script.write_bytes(helper)
     check = directory / 'export_bundle.py'
     check.write_bytes(exporter)
     clean = directory / 'public-package'
     run(sys.executable, '-I', str(check), str(bundle), str(clean))
-    run(sys.executable, '-I', str(script), str(Path('plugins.json').resolve()),
-        str(clean / 'plugins.json'), str(merged))
+    run(sys.executable, '-I', str(script), str(Path('catalog.json').resolve()),
+        str(clean / 'catalog.json'), str(merged))
     shutil.copytree(clean, target)
-    shutil.copyfile(merged, 'plugins.json')
-run('git', 'add', '--', str(target), 'plugins.json')
+    shutil.copyfile(merged, 'catalog.json')
+run('git', 'add', '--', str(target), 'catalog.json')
 run('git', 'commit', '-m', f'release(plugins): publish signed version {version}')
 run('git', 'tag', package_tag)
 run('git', 'push', '--atomic', 'origin', f'HEAD:refs/heads/{os.environ["DEFAULT_BRANCH"]}', f'refs/tags/{package_tag}')

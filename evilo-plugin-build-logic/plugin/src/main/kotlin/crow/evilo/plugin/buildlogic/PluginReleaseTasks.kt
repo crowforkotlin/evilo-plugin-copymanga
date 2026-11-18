@@ -38,7 +38,7 @@ fun sha256(file: File): String {
 }
 
 fun guestDescriptorJson(spec: Map<*, *>): String {
-    require(spec["descriptor"] is Map<*, *>) { "plugin.json must contain a descriptor object." }
+    require(spec["descriptor"] is Map<*, *>) { "plugin-spec.json must contain a descriptor object." }
     return JsonOutput.toJson(spec["descriptor"]).also {
         require(it.toByteArray(Charsets.UTF_8).size <= WasmlineManifestLimits.DEFAULT_MAX_STRING_BYTES) {
             "The guest descriptor exceeds Wasmline's signed metadata string limit."
@@ -147,7 +147,7 @@ abstract class ExportPluginRelease : DefaultTask() {
         val release = (plugin["availableVersions"] as List<*>).single() as MutableMap<String, Any?>
         release["signing"] = mapOf("algorithm" to "Ed25519", "keyId" to requireNotNull(authority.getProperty("keyId")), "publicKeyHex" to publicHex)
         release["manifestSha256"] = sha256(File(output, "manifest.wlm"))
-        File(output, "plugins.json").writeText(JsonOutput.prettyPrint(JsonOutput.toJson(catalog)) + "\n")
+        File(output, "catalog.json").writeText(JsonOutput.prettyPrint(JsonOutput.toJson(catalog)) + "\n")
     }
 
     private fun checkedUrl(value: String): String {

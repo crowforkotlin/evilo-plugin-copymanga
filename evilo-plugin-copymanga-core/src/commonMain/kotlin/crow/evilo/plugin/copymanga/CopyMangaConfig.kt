@@ -10,8 +10,8 @@ package crow.evilo.plugin.copymanga
  * so a single-host configuration cannot serve this provider.
  *
  * Both URLs are validated against the reviewed host allowlists so a misconfigured value
- * cannot silently point a published plugin at an unreviewed origin; the host additionally
- * enforces the same origins through the declared `api` permission.
+ * cannot silently point this provider at an unreviewed origin. The host imposes no
+ * separate origin policy.
  *
  * @property listBaseUrl origin used for `/api/v3/comics` and `/api/v3/search/comic`.
  * @property contentBaseUrl origin used for comic details, chapter lists, and chapter images.
@@ -27,7 +27,7 @@ data class CopyMangaConfig(
         }
     }
 
-    /** Reviewed CopyManga origins. Published plugin permissions must list every entry here. */
+    /** Reviewed CopyManga origins this provider is willing to call. */
     companion object {
         /** Primary list origin reported by `/api/v3/system/network2`. */
         const val PRIMARY_LIST_URL = "https://api.copy202601.com"
@@ -59,5 +59,12 @@ data class CopyMangaConfig(
             "https://mapi.fgjfghkkcenter.club",
             "https://mapi.fgjfghkk.club",
         )
+
+        /** Keep the returned CDN host and path together; substituting `s3` breaks images. */
+        val MEDIA_BASE_URLS: Set<String> = buildSet {
+            add("https://s3.mangafunb.fun")
+            add("https://s0.mangafunb.fun")
+            for (letter in 'a'..'z') add("https://s$letter.mangafunb.fun")
+        }
     }
 }

@@ -2,7 +2,7 @@
 kotlincrypto = "0.8.0"
 kotlin = "2.4.0"
 wasmline = "1.0.0-beta1"
-evilo-plugin-sdk = "1.0.0"
+evilo-plugin-sdk = "2.0.0"
 kotlinx-serialization = "1.11.0"
 jvm = "21"
 

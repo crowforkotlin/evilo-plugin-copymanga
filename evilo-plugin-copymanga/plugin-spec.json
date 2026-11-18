@@ -1,0 +1,23 @@
+{
+  "descriptor": {
+    "id": "crow.evilo.source.copymanga",
+    "name": "CopyManga",
+    "version": "1.0.0",
+    "versionCode": 1,
+    "kinds": [
+      "manga"
+    ],
+    "languages": [
+      "zh"
+    ]
+  },
+  "catalog": {
+    "authors": [
+      "evilo contributors"
+    ],
+    "overseas": true,
+    "nsfw": true,
+    "description": "CopyManga search and catalog with metadata, mirror-served details, chapter groups and ordered image pages. Short pages advance by returned counts; available mirrors are retried for HTTP and empty-payload failures.",
+    "createdAt": "2026-11-09"
+  }
+}

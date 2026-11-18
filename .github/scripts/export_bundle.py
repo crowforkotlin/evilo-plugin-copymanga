@@ -7,13 +7,13 @@ import shutil
 import sys
 
 source, output = map(Path, sys.argv[1:])
-catalog = json.loads((source / 'plugins.json').read_text())
+catalog = json.loads((source / 'catalog.json').read_text())
 plugin, = catalog['plugins']
 release, = plugin['availableVersions']
 archive_name = release['sourceArchiveUrl'].rsplit('/', 1)[1]
 if not re.fullmatch(r'[A-Za-z0-9_.-]+\.zip', archive_name):
     raise SystemExit('Unexpected source archive name.')
-files = [Path('manifest.wlm'), Path('plugins.json'), Path('icon.png'), Path(archive_name)]
+files = [Path('manifest.wlm'), Path('catalog.json'), Path('icon.png'), Path(archive_name)]
 artifacts = list((source / 'artifacts').rglob('*'))
 for artifact in artifacts:
     if artifact.is_symlink():

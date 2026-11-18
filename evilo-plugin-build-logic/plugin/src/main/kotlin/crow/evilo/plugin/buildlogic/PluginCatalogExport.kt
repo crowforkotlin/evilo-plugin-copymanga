@@ -12,8 +12,8 @@ internal fun createPluginCatalog(
     sourceArchiveSha256: String,
     publishedAt: String,
 ): Map<String, Any?> {
-    val descriptor = requireNotNull(spec["descriptor"] as? Map<*, *>) { "plugin.json must contain a descriptor object." }
-    val metadata = requireNotNull(spec["catalog"] as? Map<*, *>) { "plugin.json must contain a catalog object." }
+    val descriptor = requireNotNull(spec["descriptor"] as? Map<*, *>) { "plugin-spec.json must contain a descriptor object." }
+    val metadata = requireNotNull(spec["catalog"] as? Map<*, *>) { "plugin-spec.json must contain a catalog object." }
     val publication = parseCatalogDate(publishedAt)
     if (metadata.containsKey("createdAt")) {
         val createdAt = metadata["createdAt"]
@@ -38,9 +38,9 @@ internal fun createPluginCatalog(
         for (field in listOf("id", "name", "kinds", "languages")) {
             put(field, requireNotNull(descriptor[field]) { "The descriptor must declare its $field." })
         }
-        for (field in listOf("protocol", "permissions")) {
-            if (descriptor.containsKey(field)) put(field, descriptor[field]) else remove(field)
-        }
+        // Permissions are copied verbatim; there is no protocol block in the catalog model.
+        remove("protocol")
+        if (descriptor.containsKey("permissions")) put("permissions", descriptor["permissions"]) else remove("permissions")
         put("sourceUrl", sourceRepositoryUrl)
         put("iconUrl", "$packageBaseUrl/icon.png")
         put("availableVersions", listOf(release))

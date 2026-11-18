@@ -17,10 +17,10 @@ plugins {
     id("io.github.crowforkotlin.wasmline")
 }
 
-// Kotlin DSL accessor generation has no consumer catalog or plugin.json.
+// Kotlin DSL accessor generation has no consumer catalog or plugin-spec.json.
 val catalog = extensions.getByType<VersionCatalogsExtension>().find("libs").orElse(null)
 if (catalog != null) {
-    val specFile = layout.projectDirectory.file("plugin.json")
+    val specFile = layout.projectDirectory.file("plugin-spec.json")
     val spec = JsonSlurper().parse(specFile.asFile) as Map<*, *>
     val descriptor = spec["descriptor"] as Map<*, *>
     val pluginId = descriptor["id"] as String
@@ -44,7 +44,7 @@ if (catalog != null) {
         isPreserveFileTimestamps = false
         isReproducibleFileOrder = true
         from(rootProject.layout.projectDirectory) {
-            include("**/src/**", "**/plugin.json", "**/build.gradle.kts", "**/settings.gradle.kts")
+            include("**/src/**", "**/plugin-spec.json", "**/build.gradle.kts", "**/settings.gradle.kts")
             include("gradle/**", "gradlew", "gradlew.bat", "gradle.properties", "docs/**", "**/README.md", "LICENSE", ".gitignore")
             include("**/icon.png", "**/icon.svg", ".github/**")
             exclude("**/build/**", "**/.gradle/**", "**/.kotlin/**", "**/.cache/**", "**/.git/**", "**/*.key", "**/local.properties")

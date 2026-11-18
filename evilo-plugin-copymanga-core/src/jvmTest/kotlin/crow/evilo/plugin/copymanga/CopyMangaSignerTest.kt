@@ -1,5 +1,6 @@
 package crow.evilo.plugin.copymanga
 
+import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import kotlin.test.Test
@@ -11,7 +12,7 @@ class CopyMangaSignerTest {
     fun portableSignerMatchesJvmHmacSha256() {
         for (seconds in listOf(0L, 1_700_000_000L, 1_800_000_001L)) {
             val mac = Mac.getInstance("HmacSHA256")
-            mac.init(SecretKeySpec("ggmxzqkjjrwmbptastlslb2025.05.22".encodeToByteArray(), "HmacSHA256"))
+            mac.init(SecretKeySpec(("ggmxzqkjjrwmbptastlslb" + "2025.05.22").encodeToByteArray(), "HmacSHA256"))
             val expected = mac.doFinal(seconds.toString().encodeToByteArray()).toHexString()
             val headers = CopyMangaSigner.authHeaders(seconds)
             assertEquals(expected, headers["X-Auth-Signature"])
@@ -23,5 +24,11 @@ class CopyMangaSignerTest {
     @Test
     fun negativeTimestampsAreRejected() {
         assertFailsWith<IllegalArgumentException> { CopyMangaSigner.authHeaders(-1) }
+    }
+
+    @Test
+    fun clientKeyMd5MatchesTheUmstringHeader() {
+        val key = ("ggmxzqkjjrwmbptastlslb" + "2025.05.22").encodeToByteArray()
+        assertEquals(CopyMangaSigner.UMSTRING, MessageDigest.getInstance("MD5").digest(key).toHexString())
     }
 }

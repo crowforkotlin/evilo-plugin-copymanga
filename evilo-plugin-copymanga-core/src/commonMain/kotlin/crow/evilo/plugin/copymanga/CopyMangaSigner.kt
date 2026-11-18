@@ -18,13 +18,17 @@ internal object CopyMangaSigner {
     /** Client platform identifier; `1` and `2` are rejected with `code: 210`. */
     const val PLATFORM = "3"
 
-    /**
-     * Client user agent accepted by both host families and by the image CDN.
-     *
-     * The CDN answers `403` to any request without a user agent, so page images always
-     * carry this header explicitly.
-     */
+    /** Catalog client identity; page images use the same non-empty UA required by the CDN. */
     const val USER_AGENT = "COPY/$CLIENT_VERSION"
+
+    /** The content mirrors use the browser identity used by kira's ApiTransport. */
+    const val MIRROR_USER_AGENT = "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Version/4.0 Chrome/131.0.6778.200 Mobile Safari/537.36"
+
+    const val REQUESTED_WITH = "com.manga2020.app"
+
+    /** MD5 of the fixed protocol key, sent by the official client. */
+    const val UMSTRING = "dc1f0963804339e44aa381177cf4f4fd"
 
     /** Client channel marker sent as the `source` header. */
     const val SOURCE = "copyApp"

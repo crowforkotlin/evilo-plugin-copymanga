@@ -12,13 +12,13 @@ def git(*args):
 
 module = os.environ.get('PLUGIN_MODULE', '')
 if not module:
-    candidates = list(Path('.').glob('*/plugin.json'))
+    candidates = list(Path('.').glob('*/plugin-spec.json'))
     if len(candidates) != 1:
         raise SystemExit('Set PLUGIN_MODULE to the guest module name.')
     module = candidates[0].parent.name
 if not re.fullmatch('[A-Za-z0-9_-]+', module):
     raise SystemExit('Invalid guest module name.')
-descriptor = json.loads((Path(module) / 'plugin.json').read_text())['descriptor']
+descriptor = json.loads((Path(module) / 'plugin-spec.json').read_text())['descriptor']
 version, plugin_id = descriptor['version'], descriptor['id']
 repository, tag = os.environ['GITHUB_REPOSITORY'], os.environ['SOURCE_TAG']
 if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?', version):

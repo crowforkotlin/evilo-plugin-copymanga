@@ -20,7 +20,7 @@ visible here.
 | `EVILO_PRIVATE_KEY_HEX` | Secret | yes | Preserved official Ed25519 seed, 64 lowercase hex characters. Signs the manifest. |
 | `EVILO_PUBLIC_KEY_HEX` | Variable | yes | Public key the app embeds. Read through `vars.`, only compared, never used to sign. |
 | `EVILO_KEY_ID` | Variable | no | Defaults to the official `evilo-root-v1`. |
-| `PLUGIN_MODULE` | Variable | no | Only when more than one `*/plugin.json` exists. |
+| `PLUGIN_MODULE` | Variable | no | Only when more than one `*/plugin-spec.json` exists. |
 
 Current values:
 
@@ -37,7 +37,7 @@ Hiding it is cosmetic anyway: the published catalog carries
 read it to verify a signature.
 
 ```sh
-curl -sfL https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/main/plugins.json \
+curl -sfL https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/main/catalog.json \
   | python3 -c "import json,sys;print(json.load(sys.stdin)['plugins'][0]['availableVersions'][0]['signing'])"
 ```
 
@@ -78,18 +78,18 @@ signs nothing.
 
 ## 2. Choosing the next version
 
-Edit `evilo-plugin-copymanga/plugin.json` only. `descriptor.version` must be a new
+Edit `evilo-plugin-copymanga/plugin-spec.json` only. `descriptor.version` must be a new
 semver, `descriptor.versionCode` a strictly larger integer than every published
 entry, and both must match the source you are shipping. Changed code,
-permissions, hosts, or headers always need a new version: never re-tag, never
+providers, hosts, or headers always need a new version: never re-tag, never
 re-export, never reuse a version to change its bytes.
 
 ```sh
 python3 - <<'PY'
 import json
-plugin, = json.load(open('plugins.json'))['plugins']
+plugin, = json.load(open('catalog.json'))['plugins']
 print('published:', [(v['version'], v['versionCode']) for v in plugin['availableVersions']])
-spec = json.load(open('evilo-plugin-copymanga/plugin.json'))['descriptor']
+spec = json.load(open('evilo-plugin-copymanga/plugin-spec.json'))['descriptor']
 print('building :', spec['version'], spec['versionCode'])
 assert all(int(v['versionCode']) < spec['versionCode'] for v in plugin['availableVersions'])
 PY
@@ -134,17 +134,17 @@ git push origin v1.0.1  # triggers plugin-release.yml
 ## 5. What the workflow does
 
 1. `package` (read-only): resolves module, version, plugin ID, and revision from
-   the tagged `plugin.json`, restores the Secret into `$RUNNER_TEMP`, compares it
+   the tagged `plugin-spec.json`, restores the Secret into `$RUNNER_TEMP`, compares it
    with `EVILO_PUBLIC_KEY_HEX`, runs `:exportPluginRelease`, copies only public
    files, deletes the key material.
 2. `publish` (write): refuses if `package-vX.Y.Z` exists, switches to the default
    branch, copies the exported files to `releases/X.Y.Z/`, appends the release to
-   `plugins.json` while older entries keep their effective
-   permissions/protocol/kinds/languages, commits
+   `catalog.json` while older entries keep their effective
+   kinds/languages, commits
    `release(plugins): publish signed version X.Y.Z`, tags `package-vX.Y.Z`, and
    pushes branch and tag atomically.
 3. Release assets: `restore_release.py` creates a draft Release, uploads the
-   package ZIP, exact source ZIP, `manifest.wlm`, `plugins.json`, and `icon.png`,
+   package ZIP, exact source ZIP, `manifest.wlm`, `catalog.json`, and `icon.png`,
    verifies sizes and SHA-256 digests, then publishes it.
 
 The catalog push happens before asset upload, so an upload failure leaves the
@@ -156,7 +156,7 @@ catalog valid and is repaired with `republish=true`, never with a new version.
 gh run list --repo crowforkotlin/evilo-plugin-copymanga -w plugin-release.yml -L 3
 gh release view v1.0.1 --repo crowforkotlin/evilo-plugin-copymanga
 
-curl -fsSL https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/main/plugins.json \
+curl -fsSL https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/main/catalog.json \
   | python3 -c "import json,sys; p=json.load(sys.stdin)['plugins'][0]; \
 print([(v['version'], v['versionCode'], v.get('manifestSha256')) for v in p['availableVersions']])"
 
@@ -209,7 +209,7 @@ a new plugin release. Once users have builds, it is a breaking app release.
 
 | Symptom | Cause |
 | --- | --- |
-| `Set PLUGIN_MODULE to the guest module name.` | More than one `*/plugin.json`; set the variable. |
+| `Set PLUGIN_MODULE to the guest module name.` | More than one `*/plugin-spec.json`; set the variable. |
 | `Source tag must match descriptor.version` | Tag and `descriptor.version` disagree. |
 | `Commit all released source before packaging.` | Dirty checkout at the tagged commit. |
 | `Never reuse published versions; versionCode must increase.` | Version or `versionCode` not advanced. |

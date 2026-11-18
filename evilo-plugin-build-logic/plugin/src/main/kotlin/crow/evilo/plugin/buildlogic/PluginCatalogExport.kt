@@ -38,9 +38,9 @@ internal fun createPluginCatalog(
         for (field in listOf("id", "name", "kinds", "languages")) {
             put(field, requireNotNull(descriptor[field]) { "The descriptor must declare its $field." })
         }
-        // Permissions are copied verbatim; there is no protocol block in the catalog model.
-        remove("protocol")
-        if (descriptor.containsKey("permissions")) put("permissions", descriptor["permissions"]) else remove("permissions")
+        if (descriptor.containsKey("protocol")) put("protocol", descriptor["protocol"]) else remove("protocol")
+        // The descriptor holds no network or storage declaration; drop a legacy block.
+        remove("permissions")
         put("sourceUrl", sourceRepositoryUrl)
         put("iconUrl", "$packageBaseUrl/icon.png")
         put("availableVersions", listOf(release))

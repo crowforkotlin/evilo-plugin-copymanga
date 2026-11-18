@@ -16,7 +16,7 @@ if old_path.exists() and previous is not None:
         if entry['version'] == release['version'] or int(entry['versionCode']) >= int(release['versionCode']):
             raise SystemExit('Never reuse published versions; versionCode must increase.')
         entry = copy.deepcopy(entry)
-        for field in ('permissions', 'protocol', 'kinds', 'languages', 'sourceUrl', 'signing'):
+        for field in ('protocol', 'kinds', 'languages', 'sourceUrl', 'signing'):
             effective = entry.get(field, previous.get(field))
             if effective != incoming.get(field):
                 if effective is None and field != 'signing':

@@ -17,10 +17,10 @@ class PluginCatalogExportTest {
         val plugin = generated.plugin()
         val release = plugin.release()
         assertEquals(setOf("name", "plugins"), generated.keys)
-        for (field in listOf("id", "name", "kinds", "languages", "protocol", "permissions")) {
+        for (field in listOf("id", "name", "kinds", "languages", "protocol")) {
             assertEquals(descriptor[field], plugin[field])
         }
-        for (field in listOf("kinds", "languages", "protocol", "permissions", "sourceUrl", "usable", "minimumHostVersionCode")) {
+        for (field in listOf("kinds", "languages", "protocol", "sourceUrl", "usable", "minimumHostVersionCode")) {
             assertFalse(release.containsKey(field))
         }
         for (field in listOf("version", "updatedAt", "certified")) assertFalse(plugin.containsKey(field))
@@ -63,16 +63,14 @@ class PluginCatalogExportTest {
         val metadata = spec["catalog"] as Map<*, *>
         val overridden = spec + ("catalog" to (metadata + mapOf(
             "id" to "different.plugin", "name" to "Different name", "version" to "9.0.0",
-            "certified" to true, "permissions" to emptyMap<String, Any>(), "protocol" to emptyMap<String, Any>(),
+            "certified" to true, "protocol" to emptyMap<String, Any>(),
         )))
         val plugin = catalog(overridden).plugin()
         assertEquals(descriptor["id"], plugin["id"])
         assertEquals(descriptor["name"], plugin["name"])
-        assertEquals(descriptor["permissions"], plugin["permissions"])
         assertEquals(descriptor["protocol"], plugin["protocol"])
         assertFalse(plugin.containsKey("certified"))
-        val defaults = catalog(overridden + ("descriptor" to (descriptor - setOf("permissions", "protocol")))).plugin()
-        assertFalse(defaults.containsKey("permissions"))
+        val defaults = catalog(overridden + ("descriptor" to (descriptor - setOf("protocol")))).plugin()
         assertFalse(defaults.containsKey("protocol"))
     }
 
@@ -111,11 +109,7 @@ class PluginCatalogExportTest {
             "id": "example.reader", "name": "Example reader", "version": "1.0.0", "versionCode": 1,
             "kinds": ["novel"], "languages": ["en"],
             "protocol": {"major": 1, "minimumMinor": 0,
-              "requiredCapabilities": ["media.catalog.v1", "http.request.v1", "storage.kv.v1"], "optionalCapabilities": []},
-            "permissions": {
-              "api": {"origins": ["https://api.example.com"], "pathPrefixes": ["/content/"], "methods": ["GET"], "headers": ["accept"]},
-              "media": {"origins": [], "pathPrefixes": ["/"], "methods": ["GET"], "headers": []}, "storage": true
-            }
+              "requiredCapabilities": ["media.catalog.v1", "http.request.v1", "storage.kv.v1"], "optionalCapabilities": []}
           },
           "catalog": {"authors": ["Example author"], "description": "Catalog export fixture.", "createdAt": "2026-11-09"}
         }

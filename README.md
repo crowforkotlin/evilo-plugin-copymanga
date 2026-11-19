@@ -91,7 +91,8 @@ The pipeline is two jobs:
    and creates a GitHub Release with the package ZIP and the exact source ZIP.
 
 Never overwrite package files, reuse a version for changed source, or replace a
-published source hash.
+published source hash. The catalog keeps itself under 10 MiB by dropping the
+oldest releases; a version at or above `minimumUsableVersionCode` is never dropped.
 
 ## Manual export
 

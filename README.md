@@ -45,9 +45,13 @@ selection is internal: list requests use the list hosts, while details, chapters
 and images use the `mapi.*` mirror family. HTTP and empty-payload failures are
 retried across the reviewed mirrors.
 
-Requests are HMAC-signed with the provider's published header scheme and a fixed
-`User-Agent`. Login, library/history, reading progress, and downloads are not
-implemented.
+Requests use the reviewed CopyManga `platform: 1` / `version: 3.1.1` header
+pair, `Accept: */*`, and fresh HMAC timestamps. The rejected `source: copyApp`
+marker is not sent. Chapter URLs remain the grouped `/chapters` and `/chapter/`
+paths; missing `words` keeps complete server order, and empty image payloads
+retry reviewed mirrors. See `evilo-plugin-copymanga/README.md` for the reference
+source evidence and remaining host limitations. Login, library/history, reading
+progress, and downloads are not implemented.
 
 ## SDK
 

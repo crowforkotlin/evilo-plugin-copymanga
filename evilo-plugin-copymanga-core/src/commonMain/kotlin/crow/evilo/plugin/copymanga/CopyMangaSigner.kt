@@ -5,18 +5,17 @@ import org.kotlincrypto.macs.hmac.sha2.HmacSHA256
 /**
  * Produces the CopyManga client identity and the per-request authentication headers.
  *
- * CopyManga gates every `/api/v3` call on a `platform`/`version` pair and ignores the
- * signature today, but the official client always sends it and the server may start
- * enforcing it. The values below are the reviewed contract from the interface notes:
- * `platform` must be `3`, and `version` must stay inside the `3.0.0`–`3.1.1` window
- * (outside it the API answers `code: 210` with an upgrade prompt).
+ * Uses the platform/version pair in cutmangax-source's defaultCopyHeader. Its
+ * interface observations document platform 3's version-dependent rejection and
+ * content cropping; platform 1 is supported on both reviewed host families.
+ * Authentication timestamps remain fresh per request, independently of package signing.
  */
 internal object CopyMangaSigner {
     /** Client version sent as the `version` header and inside the user agent. */
     const val CLIENT_VERSION = "3.1.1"
 
-    /** Client platform identifier; `1` and `2` are rejected with `code: 210`. */
-    const val PLATFORM = "3"
+    /** Shared list/content platform used by the reference's current CopyManga calls. */
+    const val PLATFORM = "1"
 
     /** Catalog client identity; page images use the same non-empty UA required by the CDN. */
     const val USER_AGENT = "COPY/$CLIENT_VERSION"
@@ -29,9 +28,6 @@ internal object CopyMangaSigner {
 
     /** MD5 of the fixed protocol key, sent by the official client. */
     const val UMSTRING = "dc1f0963804339e44aa381177cf4f4fd"
-
-    /** Client channel marker sent as the `source` header. */
-    const val SOURCE = "copyApp"
 
     /** Referer identifying the calling client; the JSON API does not validate it. */
     const val REFERER = "com.copymanga.app-$CLIENT_VERSION"

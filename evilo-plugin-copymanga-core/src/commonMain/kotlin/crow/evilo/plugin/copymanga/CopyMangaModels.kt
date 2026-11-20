@@ -46,6 +46,7 @@ internal data class CopyMangaComic(
     @Serializable(with = LenientList::class) val author: List<CopyMangaAuthor?>? = null,
     @SerialName("author_alias") val authorAlias: String? = null,
     @Serializable(with = LenientList::class) val theme: List<CopyMangaTag?>? = null,
+    val groups: Map<String, CopyMangaGroup?>? = null,
     val alias: JsonElement? = null,
     @Serializable(with = LenientLong::class) val popular: Long? = null,
     @SerialName("datetime_updated") val datetimeUpdated: String? = null,

@@ -47,7 +47,7 @@ class CopyMangaPluginTest {
     fun catalogAndSearchUseTheirOwnLimitsAndEncodeTheQuery() {
         val catalog = start(PluginOperation(PluginOperationKind.SEARCH, MediaKind.MANGA))
         assertEquals(
-            CopyMangaConfig.PRIMARY_LIST_URL + "/api/v3/comics?free_type=1&ordering=-datetime_updated&offset=0&limit=50&platform=3",
+            CopyMangaConfig.PRIMARY_LIST_URL + "/api/v3/comics?free_type=1&ordering=-datetime_updated&offset=0&limit=50&platform=1",
             catalog.request?.url,
         )
         val search = start(PluginOperation(PluginOperationKind.SEARCH, MediaKind.MANGA, "漫画 &?#", 2))
@@ -324,6 +324,49 @@ class CopyMangaPluginTest {
                 resume(operation, start(operation), """{"code":200,"results":{"chapter":{"contents":[{"url":"$url"}]}}}""")
             }
         }
+    }
+
+    @Test
+    fun chapterDiscoveryUsesNestedComicGroupsWhenTopLevelGroupsAreAbsentOrEmpty() {
+        val operation = PluginOperation(PluginOperationKind.CHAPTERS, MediaKind.MANGA, item = item)
+        for (topLevel in listOf("", ",\"groups\":{}")) {
+            val discovered = resume(operation, start(operation), """{"code":200,"results":{"comic":{
+                "path_word":"example","groups":{"special":{"name":"Special","count":1}}}$topLevel}}""")
+            assertTrue(assertNotNull(discovered.request).url.contains("/group/special/chapters"))
+        }
+    }
+
+    @Test
+    fun chapterRequestsUseTheReviewedHeaderPairAndCurrentGuestPaths() {
+        val operation = PluginOperation(PluginOperationKind.CHAPTERS, MediaKind.MANGA, item = item)
+        val discovery = start(operation)
+        val list = resume(operation, discovery, """{"code":200,"results":{
+            "comic":{"path_word":"example"},"groups":{"default":{"count":1}}}}""")
+        val content = start(PluginOperation(PluginOperationKind.CONTENT, MediaKind.MANGA, chapter = chapter))
+        assertTrue(assertNotNull(list.request).url.contains("/group/default/chapters?limit=500&offset=0&platform=1"))
+        assertTrue(assertNotNull(content.request).url.endsWith("/chapter/chapter-1?platform=1"))
+        for (step in listOf(discovery, list, content)) {
+            val request = assertNotNull(step.request)
+            assertTrue(request.url.startsWith(CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/"))
+            assertEquals("GET", request.method)
+            assertEquals("1", request.headers["platform"])
+            assertEquals("3.1.1", request.headers["version"])
+            assertEquals("1", request.headers["webp"])
+            assertEquals("*/*", request.headers["Accept"])
+            assertTrue(request.headers.keys.none { it.lowercase() in setOf("source", "dt", "cookie", "authorization", "host", "origin") })
+        }
+    }
+
+    @Test
+    fun contentWithoutWordsUsesEveryServerImageAndEmptyPayloadRetries() {
+        val operation = PluginOperation(PluginOperationKind.CONTENT, MediaKind.MANGA, chapter = chapter)
+        val retry = resume(operation, start(operation), """{"code":200,"results":{"chapter":{"contents":[]}}}""")
+        assertTrue(assertNotNull(retry.request).url.startsWith(CopyMangaConfig.SECONDARY_CONTENT_URL))
+        val pages = assertNotNull(resume(operation, retry, """{"code":200,"results":{"chapter":{
+            "uuid":"chapter-1","size":2,"contents":[{"url":"https://sm.mangafunb.fun/m/one.webp"},
+            {"url":"https://sm.mangafunb.fun/m/two.webp"}]}}}""").result?.content).images
+        assertEquals(listOf(0, 1), pages.map { it.index })
+        assertEquals(listOf("one.webp", "two.webp"), pages.map { it.imageUrl.substringAfterLast('/') })
     }
 
     private fun start(operation: PluginOperation): PluginStep = PluginJson.decodeFromString(plugin.start(PluginJson.encodeToString(operation)))

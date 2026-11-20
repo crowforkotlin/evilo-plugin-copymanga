@@ -19,19 +19,18 @@ internal class CopyMangaRequests(private val clock: Clock) {
     companion object {
         val IMAGE_HEADERS: Map<String, String> = mapOf("User-Agent" to CopyMangaSigner.USER_AGENT)
         val API_HEADER_NAMES: Set<String> = setOf(
-            "user-agent", "accept", "source", "platform", "version", "webp", "referer", "umstring",
+            "user-agent", "accept", "platform", "version", "webp", "referer", "umstring",
             "x-requested-with", "x-auth-timestamp", "tapstring", "x-auth-signature",
         )
 
         private val COMMON_HEADERS = mapOf(
-            "Accept" to "application/json",
+            "Accept" to "*/*",
             "platform" to CopyMangaSigner.PLATFORM,
             "version" to CopyMangaSigner.CLIENT_VERSION,
             "webp" to CopyMangaSigner.WEBP,
         )
         private val LIST_HEADERS = COMMON_HEADERS + mapOf(
             "User-Agent" to CopyMangaSigner.USER_AGENT,
-            "source" to CopyMangaSigner.SOURCE,
             "referer" to CopyMangaSigner.REFERER,
             "umstring" to CopyMangaSigner.UMSTRING,
         )

@@ -48,14 +48,14 @@ class CopyMangaSourceTest {
         val request = source.searchRequest("\u6f2b\u753b &?#", 2)
         assertEquals(
             CopyMangaConfig.PRIMARY_LIST_URL +
-                "/api/v3/search/comic?q=%E6%BC%AB%E7%94%BB%20%26%3F%23&q_type=&offset=20&limit=20&platform=3",
+                "/api/v3/search/comic?q=%E6%BC%AB%E7%94%BB%20%26%3F%23&q_type=&offset=20&limit=20&platform=1",
             request.url,
         )
-        assertEquals("3", request.headers["platform"])
+        assertEquals("1", request.headers["platform"])
         assertEquals("3.1.1", request.headers["version"])
         assertEquals("COPY/3.1.1", request.headers["User-Agent"])
-        assertEquals("application/json", request.headers["Accept"])
-        assertEquals("copyApp", request.headers["source"])
+        assertEquals("*/*", request.headers["Accept"])
+        assertNull(request.headers["source"])
         assertEquals(CopyMangaSigner.UMSTRING, request.headers["umstring"])
         assertEquals("1", request.headers["webp"])
         assertEquals("com.copymanga.app-3.1.1", request.headers["referer"])
@@ -70,7 +70,7 @@ class CopyMangaSourceTest {
     @Test
     fun blankSearchBrowsesTheComicCatalog() {
         assertEquals(
-            CopyMangaConfig.PRIMARY_LIST_URL + "/api/v3/comics?free_type=1&ordering=-datetime_updated&offset=0&limit=20&platform=3",
+            CopyMangaConfig.PRIMARY_LIST_URL + "/api/v3/comics?free_type=1&ordering=-datetime_updated&offset=0&limit=20&platform=1",
             source.searchRequest("", 1).url,
         )
     }
@@ -133,15 +133,15 @@ class CopyMangaSourceTest {
     @Test
     fun requestsUseMirrorUrlsAndSourceIdsInsteadOfInputUrls() {
         assertEquals(
-            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic2/example?platform=3",
+            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic2/example?platform=1",
             source.detailsRequest(manga).url,
         )
         assertEquals(
-            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic/example/chapter/chapter-1?platform=3",
+            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic/example/chapter/chapter-1?platform=1",
             source.pagesRequest(chapter).url,
         )
         val escaped = manga.copy(id = MangaId(TEST_SOURCE_ID, "a/b?#"))
-        assertTrue(source.detailsRequest(escaped).url.endsWith("a%2Fb%3F%23?platform=3"))
+        assertTrue(source.detailsRequest(escaped).url.endsWith("a%2Fb%3F%23?platform=1"))
         assertFailsWith<IllegalArgumentException> {
             source.detailsRequest(manga.copy(id = MangaId(TEST_SOURCE_ID, "..")))
         }
@@ -240,7 +240,7 @@ class CopyMangaSourceTest {
         assertEquals(manga.authors, result.authors)
         assertEquals(manga.description, result.description)
         assertEquals(
-            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic2/example?platform=3",
+            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic2/example?platform=1",
             result.url,
         )
         assertFailsWith<IllegalStateException> {
@@ -264,7 +264,7 @@ class CopyMangaSourceTest {
         val source = CopyMangaSource(TEST_SOURCE_ID, TEST_SOURCE_VERSION, clock = clock)
         val start = source.chaptersRequest(manga)
         assertEquals(
-            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic2/example?platform=3",
+            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic2/example?platform=1",
             start.request.url,
         )
         val discovery = source.parseChapters(manga, start, response(
@@ -278,7 +278,7 @@ class CopyMangaSourceTest {
         ))
         assertTrue(discovery.chapters.isEmpty())
         val firstRequest = assertNotNull(discovery.nextRequest)
-        assertTrue(firstRequest.request.url.endsWith("/group/default/chapters?limit=500&offset=0&platform=3"))
+        assertTrue(firstRequest.request.url.endsWith("/group/default/chapters?limit=500&offset=0&platform=1"))
         assertNotNull(firstRequest.context)
         val first = source.parseChapters(manga, firstRequest, response(
             """{"code":200,"results":{"offset":0,"limit":1,"total":2,
@@ -287,18 +287,18 @@ class CopyMangaSourceTest {
         assertEquals("Main: First", first.chapters.single().title)
         assertEquals(1.0, first.chapters.single().number)
         assertEquals(
-            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic/example/chapter/first?platform=3",
+            CopyMangaConfig.PRIMARY_CONTENT_URL + "/api/v3/comic/example/chapter/first?platform=1",
             first.chapters.single().url,
         )
         clock.seconds++
         val secondRequest = assertNotNull(first.nextRequest)
-        assertTrue(secondRequest.request.url.endsWith("/group/default/chapters?limit=500&offset=1&platform=3"))
+        assertTrue(secondRequest.request.url.endsWith("/group/default/chapters?limit=500&offset=1&platform=1"))
         val second = source.parseChapters(manga, secondRequest, response(
             """{"code":200,"results":{"offset":1,"limit":1,"total":2,
                 "list":[{"uuid":"second","name":"Second","ordered":2}]}}""",
         ))
         val volumeRequest = assertNotNull(second.nextRequest)
-        assertTrue(volumeRequest.request.url.endsWith("/group/volume/chapters?limit=500&offset=0&platform=3"))
+        assertTrue(volumeRequest.request.url.endsWith("/group/volume/chapters?limit=500&offset=0&platform=1"))
         assertNotEquals(secondRequest.request.headers["X-Auth-Timestamp"], volumeRequest.request.headers["X-Auth-Timestamp"])
         val volume = source.parseChapters(manga, volumeRequest, response(
             """{"code":200,"results":{"offset":0,"limit":100,"total":1,

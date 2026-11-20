@@ -66,7 +66,8 @@ internal class CopyMangaParser(
         val extensions = mapped.extensions.toMutableMap()
         // A fresh response without groups must not reuse an earlier discovery snapshot.
         extensions.remove(COPYMANGA_GROUPS)
-        details.groups?.let {
+        val detailGroups = details.groups?.takeIf { it.isNotEmpty() } ?: comic.groups ?: details.groups
+        detailGroups?.let {
             val snapshot = CopyMangaGroupSnapshot(item.id.value, origin, clock.now().epochSeconds, groups(it))
             extensions[COPYMANGA_GROUPS] = CopyMangaJson.encodeToString(snapshot)
         }
@@ -85,7 +86,8 @@ internal class CopyMangaParser(
         check(comic.pathWord.isNullOrBlank() || comic.pathWord == mangaId) {
             "CopyManga chapter discovery must preserve the requested manga ID."
         }
-        return groups(details.groups ?: missingPayload(response, "CopyManga chapter discovery contains no groups."))
+        val discovered = details.groups?.takeIf { it.isNotEmpty() } ?: comic.groups ?: details.groups
+        return groups(discovered ?: missingPayload(response, "CopyManga chapter discovery contains no groups."))
     }
 
     /** Expired or incompatible optional snapshots cause a fresh discovery request. */
@@ -180,8 +182,8 @@ internal class CopyMangaParser(
         check(contents.comicPathWord.isNullOrBlank() || contents.comicPathWord == chapter.itemId.value) {
             "CopyManga returned pages belonging to another manga."
         }
-        val images = checkNotNull(contents.contents) { "CopyManga page results contain no contents." }
-        check(images.isNotEmpty()) { "CopyManga chapter ${chapter.id} contains no images." }
+        val images = contents.contents ?: missingPayload(response, "CopyManga page results contain no contents.")
+        if (images.isEmpty()) missingPayload(response, "CopyManga chapter ${chapter.id} contains no images.")
         check(images.size <= MAX_IMAGE_PAGES) { "CopyManga chapter exceeds evilo's 2000-image limit." }
         check(contents.size == null || contents.size == images.size) {
             "CopyManga chapter size ${contents.size} does not match ${images.size} returned images."

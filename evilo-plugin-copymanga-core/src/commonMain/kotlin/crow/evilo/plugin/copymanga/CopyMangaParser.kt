@@ -244,7 +244,7 @@ internal class CopyMangaParser(
         theme?.let { put(extensions, "theme", CopyMangaJson.encodeToString(it)) }
         put(extensions, "popular", popular?.toString())
         put(extensions, "datetime_updated", datetimeUpdated)
-        put(extensions, "free_type", freeType?.toString())
+        put(extensions, "free_type", freeType)
         put(extensions, "status", status)
         put(extensions, "region", region)
         put(extensions, "reclass", reclass)

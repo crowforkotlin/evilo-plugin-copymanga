@@ -50,7 +50,8 @@ internal data class CopyMangaComic(
     val alias: JsonElement? = null,
     @Serializable(with = LenientLong::class) val popular: Long? = null,
     @SerialName("datetime_updated") val datetimeUpdated: String? = null,
-    @SerialName("free_type") @Serializable(with = LenientInt::class) val freeType: Int? = null,
+    // List routes use a scalar; details return a structured metadata object.
+    @SerialName("free_type") val freeType: JsonElement? = null,
     val status: JsonElement? = null,
     val region: JsonElement? = null,
     val reclass: JsonElement? = null,

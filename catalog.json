@@ -18,8 +18,24 @@
         "zh"
       ],
       "sourceUrl": "https://github.com/crowforkotlin/evilo-plugin-copymanga",
-      "iconUrl": "https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/package-v1.0.0/releases/1.0.0/icon.png",
+      "iconUrl": "https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/package-v1.0.1/releases/1.0.1/icon.png",
       "availableVersions": [
+        {
+          "version": "1.0.1",
+          "versionCode": 2,
+          "manifestUrl": "https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/package-v1.0.1/releases/1.0.1/manifest.wlm",
+          "sourceRevision": "a83c5a9ce9b580f9e29873e76e030f4516d53fe7",
+          "sourceArchiveUrl": "https://raw.githubusercontent.com/crowforkotlin/evilo-plugin-copymanga/package-v1.0.1/releases/1.0.1/crow.evilo.source.copymanga-1.0.1-sources.zip",
+          "sourceArchiveSha256": "6c5fe5a976e4caf73d2c769dc620c15f431d23b50af545b778b6cc93885b67ee",
+          "publishedAt": "2026-11-24T00:00:00Z",
+          "sourceUrl": "https://github.com/crowforkotlin/evilo-plugin-copymanga/tree/a83c5a9ce9b580f9e29873e76e030f4516d53fe7",
+          "signing": {
+            "algorithm": "Ed25519",
+            "keyId": "evilo-root-v1",
+            "publicKeyHex": "cc42792de95ab03ba25ca9dda958b1951a976f5cedfd59e4f1d3190a08487bb1"
+          },
+          "manifestSha256": "0f3b006e6e5740ea79fc5ff7baac86859f3e10f7998ca1c0e279fffd856036cd"
+        },
         {
           "version": "1.0.0",
           "versionCode": 1,

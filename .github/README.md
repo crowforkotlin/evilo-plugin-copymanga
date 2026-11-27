@@ -101,8 +101,8 @@ without a manifest digest retain their original bytes and signing metadata.
   Older effective metadata is preserved when common catalog fields change.
 
 Catalog merging does not build or sign a plugin. Manual `exportPluginRelease`
-remains supported; see the root README for external signing paths and explicit
-source revision, release URL, and publication-date inputs.
+remains supported; see [docs/publishing.md](../docs/publishing.md) for its
+signing inputs.
 
 ## Installation trust
 

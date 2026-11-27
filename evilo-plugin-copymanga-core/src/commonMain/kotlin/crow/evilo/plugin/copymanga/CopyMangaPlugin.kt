@@ -28,6 +28,8 @@ internal data class CopyMangaContinuation(
     val items: List<MediaItem> = emptyList(),
     val chapters: CopyMangaChapterContext? = null,
     val exchanges: Int = 0,
+    val filters: Map<String, crow.evilo.plugin.api.PluginFilterValue> = emptyMap(),
+    val requestLimit: Int? = null,
 )
 
 /**
@@ -62,6 +64,8 @@ class CopyMangaPlugin(
             operation.operation, operation.query, operation.page, operation.item?.id?.value ?: operation.chapter?.itemId?.value,
             operation.chapter?.id, origin, listOf(origin),
             offset = if (operation.operation == PluginOperationKind.SEARCH) searchOffset(operation) else 0,
+            filters = operation.filters.toMap(),
+            requestLimit = if (operation.operation == PluginOperationKind.SEARCH) searchLimit(operation) else null,
         )
         if (operation.operation == PluginOperationKind.CHAPTERS) {
             val snapshot = parser.cachedGroups(requireNotNull(operation.item))
@@ -149,7 +153,7 @@ class CopyMangaPlugin(
     private fun requestUrl(context: CopyMangaContinuation): String {
         val path = when (context.operation) {
             PluginOperationKind.SEARCH -> copyMangaSearchPath(context.query, context.offset,
-                (if (context.query.isBlank()) COPYMANGA_CATALOG_LIMIT else COPYMANGA_SEARCH_LIMIT) - context.items.size)
+                (context.requestLimit ?: if (context.query.isBlank()) COPYMANGA_CATALOG_LIMIT else COPYMANGA_SEARCH_LIMIT) - context.items.size)
             PluginOperationKind.DETAILS -> copyMangaDetailsPath(requireNotNull(context.mangaId))
             PluginOperationKind.CHAPTERS -> context.chapters?.let(::copyMangaChaptersPath)
                 ?: copyMangaDetailsPath(requireNotNull(context.mangaId))
@@ -160,6 +164,12 @@ class CopyMangaPlugin(
 
     private fun operation(encoded: String): PluginOperation = PluginJson.decodeFromString<PluginOperation>(encoded).also {
         require(it.kind == MediaKind.MANGA && it.page > 0 && it.query.length <= 4096) { "Invalid CopyManga operation." }
+        val resolved = crow.evilo.plugin.api.resolvePluginFilters(descriptor.configuration, it.filters, crow.evilo.plugin.api.PluginFilterScope.PROVIDER)
+        require(it.filters.keys.all { key -> key == "page-size" } && resolved.keys.all { key -> key == "page-size" }) { "Unsupported CopyManga query filter." }
+        resolved["page-size"]?.let { value ->
+            val number = value.number
+            require(number != null && number in 1.0..20.0 && number % 1.0 == 0.0) { "Invalid CopyManga page size." }
+        }
         it.item?.let { item -> requireId(item.id) }
         it.chapter?.let { chapter -> requireId(chapter.itemId); encodeCopyMangaPath(chapter.id) }
         when (it.operation) {
@@ -177,6 +187,7 @@ class CopyMangaPlugin(
     }
 
     private fun validateContext(operation: PluginOperation, context: CopyMangaContinuation) {
+        require(context.filters == operation.filters && (context.requestLimit == null || context.requestLimit == searchLimit(operation))) { "CopyManga continuation filter snapshot changed." }
         require(context.operation == operation.operation && context.query == operation.query && context.page == operation.page &&
             context.mangaId == (operation.item?.id?.value ?: operation.chapter?.itemId?.value) && context.chapterId == operation.chapter?.id
         ) { "CopyManga continuation belongs to another operation." }
@@ -210,7 +221,8 @@ class CopyMangaPlugin(
     }
 
     private fun searchLimit(operation: PluginOperation): Int =
-        if (operation.query.isBlank()) COPYMANGA_CATALOG_LIMIT else COPYMANGA_SEARCH_LIMIT
+        crow.evilo.plugin.api.resolvePluginFilters(descriptor.configuration, operation.filters, crow.evilo.plugin.api.PluginFilterScope.PROVIDER)
+            .get("page-size")?.number?.toInt() ?: if (operation.query.isBlank()) COPYMANGA_CATALOG_LIMIT else COPYMANGA_SEARCH_LIMIT
 
     private fun searchOffset(operation: PluginOperation): Long = (operation.page.toLong() - 1) * searchLimit(operation)
 

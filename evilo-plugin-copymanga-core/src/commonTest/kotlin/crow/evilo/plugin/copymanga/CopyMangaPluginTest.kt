@@ -39,6 +39,21 @@ class CopyMangaPluginTest {
     private val chapter = MediaChapter(item.id, "chapter-1", "First", "https://untrusted.invalid/ignored")
 
     @Test
+    fun optionalPageSizeUsesExistingLimitWithoutChangingProviderFlags() {
+        val field = crow.evilo.plugin.api.PluginFilterField("page-size", crow.evilo.plugin.api.PluginLabel("Page size"),
+            control = crow.evilo.plugin.api.PluginFilterControl.RANGE, min = 1.0, max = 20.0)
+        val configured = CopyMangaPlugin(descriptor.copy(configuration = crow.evilo.plugin.api.PluginConfiguration(
+            groups = listOf(crow.evilo.plugin.api.PluginFilterGroup("requests", crow.evilo.plugin.api.PluginLabel("Requests"), listOf(field))))), clock = clock)
+        val operation = PluginOperation(PluginOperationKind.SEARCH, MediaKind.MANGA, page = 2,
+            filters = mapOf("page-size" to crow.evilo.plugin.api.PluginFilterValue(number = 5.0)))
+        val step = PluginJson.decodeFromString<PluginStep>(configured.start(PluginJson.encodeToString(operation)))
+        assertTrue(assertNotNull(step.request).url.contains("free_type=1&ordering=-datetime_updated&offset=5&limit=5"))
+        assertFailsWith<IllegalArgumentException> {
+            configured.start(PluginJson.encodeToString(operation.copy(filters = mapOf("page-size" to crow.evilo.plugin.api.PluginFilterValue(number = 21.0)))))
+        }
+    }
+
+    @Test
     fun descriptionMatchesTheGenericProtocol() {
         assertEquals(descriptor, PluginJson.decodeFromString<PluginDescriptor>(plugin.describe()))
     }

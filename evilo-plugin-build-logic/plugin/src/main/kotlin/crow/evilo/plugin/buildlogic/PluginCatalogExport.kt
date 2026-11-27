@@ -29,6 +29,17 @@ internal fun createPluginCatalog(
         "sourceArchiveSha256" to sourceArchiveSha256,
         "publishedAt" to publication.toString(),
     )
+    val releaseOptions = (spec["release"] as? Map<*, *>).orEmpty()
+    require(releaseOptions.keys.all { it in setOf("minimumHostVersionCode", "maximumHostVersionCode") }) { "Unsupported source release option." }
+    releaseOptions.forEach { (key, value) -> release[key.toString()] = value }
+    val protocol = descriptor["protocol"] as? Map<*, *>
+    val required = (protocol?.get("requiredCapabilities") as? List<*>).orEmpty()
+    val minor = (protocol?.get("minimumMinor") as? Number)?.toLong() ?: 0L
+    val major = (protocol?.get("major") as? Number)?.toLong() ?: 1L
+    require((major == 1L && minor == 0L && required.all { it in setOf("media.catalog.v1", "http.request.v1", "storage.kv.v1") }) ||
+        ((release["minimumHostVersionCode"] as? Number)?.toLong() ?: 1L) >= 2L) {
+        "Required new capabilities must declare minimumHostVersionCode >= 2 to protect older hosts."
+    }
     sourceSnapshotUrl?.let { release["sourceUrl"] = it }
     val plugin = metadata.entries.associate { it.key.toString() to it.value }.toMutableMap().apply {
         remove("certified")
